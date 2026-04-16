@@ -8,4 +8,11 @@
     <ImplicitUsings>enable</ImplicitUsings>
   </PropertyGroup>
 
+  <ItemGroup>
+    <PackageReference Include="ExcelDataReader" Version="3.8.0" />
+    <PackageReference Include="ExcelDataReader.DataSet" Version="3.8.0" />
+    <PackageReference Include="Microsoft.Data.Sqlite" Version="10.0.6" />
+    <PackageReference Include="System.Text.Encoding.CodePages" Version="10.0.6" />
+  </ItemGroup>
+
 </Project>
