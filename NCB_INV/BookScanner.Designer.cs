@@ -118,6 +118,9 @@
             Controls.Add(txtBarcodeScanner);
             Controls.Add(btnImport);
             Controls.Add(btnClose);
+            FormBorderStyle = FormBorderStyle.FixedSingle;
+            MaximizeBox = false;
+            MinimizeBox = false;
             Name = "BookScanner";
             Text = "BookScanner";
             ResumeLayout(false);

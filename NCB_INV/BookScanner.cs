@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Data;
+using System.Diagnostics;
 using System.Drawing;
 using System.Linq;
 using System.Text;
@@ -13,10 +14,14 @@ namespace NCB_INV
 {
     public partial class BookScanner : Form
     {
+
         private Book currentbook;
         public BookScanner()
         {
             InitializeComponent();
+            this.FormBorderStyle = FormBorderStyle.FixedSingle;
+            this.MaximizeBox = false;
+            this.StartPosition = FormStartPosition.CenterScreen;
 
             this.ActiveControl = txtBarcodeScanner;
         }
@@ -69,23 +74,11 @@ namespace NCB_INV
 
             if (ofd.ShowDialog() == DialogResult.OK)
             {
-
-                int isbnW = 15;
-                int titleW = 25;
-                int oldQtyW = 10;
-                int newQtyW = 10;
-
-                StringBuilder report = new StringBuilder();
-                report.AppendLine("============================================================");
-                report.AppendLine("                BULK QUANTITY UPDATE REPORT                 ");
-                report.AppendLine($"                Date: {DateTime.Now.ToString("f")}");
-                report.AppendLine("============================================================");
-
-                report.AppendLine(string.Format("{0,-15} | {1,-25} | {2,-10} | {3,-10}", "ISBN", "Title", "Old Qty", "New Qty"));
-                report.AppendLine(new string('-', 15 + 3 + 25 + 3 + 10 + 3 + 10));
-
+                string excelName = Path.GetFileNameWithoutExtension(ofd.FileName);
                 int updatedCount = 0;
                 int failCount = 0;
+
+                StringBuilder tableRows = new StringBuilder();
 
                 try
                 {
@@ -106,51 +99,48 @@ namespace NCB_INV
                                 if (book != null)
                                 {
                                     int oldQty = book.Qty;
-
                                     book.Qty += 1;
                                     DBConnection.SaveBook(book);
 
-                                    string cleanTitle = book.Title.Replace("\r", "").Replace("\n", " ").Replace("\t", " ").Trim();
-                                    if (cleanTitle.Length > (titleW - 3))
-                                        cleanTitle = cleanTitle.Substring(0, titleW - 3) + "..";
-
-                                    string formattedTitle = cleanTitle.PadRight(titleW);
-
-
-                                    report.AppendLine(string.Format("{0,-" + isbnW + "} | {1} | {2,-" + oldQtyW + "} | {3,-" + newQtyW + "}",
-                                        book.ISBN,
-                                        formattedTitle,
-                                        oldQty,
-                                        book.Qty));
-
+                                    tableRows.AppendLine($@"
+                            <tr>
+                                <td>{book.ISBN}</td>
+                                <td>{book.Title}</td>
+                                <td>{oldQty}</td>
+                                <td style='color: green; font-weight: bold;'>{book.Qty}</td>
+                            </tr>");
                                     updatedCount++;
                                 }
                                 else
                                 {
-                                    report.AppendLine(string.Format("{0,-" + isbnW + "} | {1} | {2,-" + newQtyW + "}",
-                                        isbn, "NOT FOUND IN DATABASE", "N/A"));
-
+                                    tableRows.AppendLine($@"
+                            <tr style='background-color: #ffe6e6;'>
+                                <td>{isbn}</td>
+                                <td style='color: red;'>NOT FOUND IN DATABASE</td>
+                                <td>N/A</td>
+                                <td>N/A</td>
+                            </tr>");
                                     failCount++;
                                 }
                             }
                         }
                     }
 
-                    report.AppendLine("------------------------------------------------------------");
-                    report.AppendLine($"Total Successfully Updated: {updatedCount}");
-                    report.AppendLine($"Total Failed (Not in DB):   {failCount}");
-                    report.AppendLine("============================================================");
+                    string finalHtml = GetHtmlTemplate(excelName, tableRows.ToString(), updatedCount, failCount);
 
-                    string reportPath = Path.Combine(Application.StartupPath, $"SCANNEDBOOKS-UpdateReport_{DateTime.Now:yyyyMMdd_HHmm}.txt");
-                    File.WriteAllText(reportPath, report.ToString());
+                    string targetFolder = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "BookSystem_Reports");
+                    if (!Directory.Exists(targetFolder)) Directory.CreateDirectory(targetFolder);
 
-                    System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(reportPath) { UseShellExecute = true });
+                    string fileName = $"SCANNED BOOKS-_{DateTime.Now:yyyyMMdd_HHmm}.html";
+                    string filePath = Path.Combine(targetFolder, fileName);
 
-                    MessageBox.Show("Import Complete. Report generated.");
+                    File.WriteAllText(filePath, finalHtml);
+
+                    Process.Start(new ProcessStartInfo(filePath) { UseShellExecute = true });
                 }
                 catch (Exception ex)
                 {
-                    MessageBox.Show("Error processing file: " + ex.Message);
+                    MessageBox.Show("Error: " + ex.Message);
                 }
             }
         }
@@ -167,24 +157,10 @@ namespace NCB_INV
             if (ofd.ShowDialog() == DialogResult.OK)
             {
                 string excelName = Path.GetFileNameWithoutExtension(ofd.FileName);
-
-                int isbnW = 15;
-                int titleW = 25;
-                int oldQtyW = 10;
-                int newQtyW = 10;
-
-                StringBuilder report = new StringBuilder();
-                report.AppendLine("============================================================");
-                report.AppendLine("                BULK RELEASE UPDATE REPORT                  ");
-                report.AppendLine($"                SCHOOL: {excelName}");
-                report.AppendLine($"                Date: {DateTime.Now.ToString("f")}");
-                report.AppendLine("============================================================");
-
-                report.AppendLine(string.Format("{0,-15} | {1,-25} | {2,-10} | {3,-10}", "ISBN", "Title", "Old Qty", "New Qty"));
-                report.AppendLine(new string('-', 15 + 3 + 25 + 3 + 10 + 3 + 10));
-
                 int updatedCount = 0;
                 int failCount = 0;
+
+                StringBuilder tableRows = new StringBuilder();
 
                 try
                 {
@@ -205,54 +181,100 @@ namespace NCB_INV
                                 if (book != null)
                                 {
                                     int oldQty = book.Qty;
-
                                     book.Qty -= 1;
                                     DBConnection.SaveBook(book);
 
-                                    string cleanTitle = book.Title.Replace("\r", "").Replace("\n", " ").Replace("\t", " ").Trim();
-                                    if (cleanTitle.Length > (titleW - 3))
-                                        cleanTitle = cleanTitle.Substring(0, titleW - 3) + "..";
-
-                                    string formattedTitle = cleanTitle.PadRight(titleW);
-
-
-                                    report.AppendLine(string.Format("{0,-" + isbnW + "} | {1} | {2,-" + oldQtyW + "} | {3,-" + newQtyW + "}",
-                                        book.ISBN,
-                                        formattedTitle,
-                                        oldQty,
-                                        book.Qty));
-
+                                    tableRows.AppendLine($@"
+                            <tr>
+                                <td>{book.ISBN}</td>
+                                <td>{book.Title}</td>
+                                <td>{oldQty}</td>
+                                <td style='color: green; font-weight: bold;'>{book.Qty}</td>
+                            </tr>");
                                     updatedCount++;
                                 }
                                 else
                                 {
-                                    report.AppendLine(string.Format("{0,-" + isbnW + "} | {1} | {2,-" + newQtyW + "}",
-                                        isbn, "NOT FOUND IN DATABASE", "N/A"));
-
+                                    tableRows.AppendLine($@"
+                            <tr style='background-color: #ffe6e6;'>
+                                <td>{isbn}</td>
+                                <td style='color: red;'>NOT FOUND IN DATABASE</td>
+                                <td>N/A</td>
+                                <td>N/A</td>
+                            </tr>");
                                     failCount++;
                                 }
                             }
                         }
                     }
 
-                    report.AppendLine("------------------------------------------------------------");
-                    report.AppendLine($"Total Successfully Updated: {updatedCount}");
-                    report.AppendLine($"Total Failed (Not in DB):   {failCount}");
-                    report.AppendLine("============================================================");
+                    string finalHtml = GetHtmlTemplate(excelName, tableRows.ToString(), updatedCount, failCount);
 
-                    string docpath = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);
+                    string targetFolder = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "BookSystem_Reports");
+                    if (!Directory.Exists(targetFolder)) Directory.CreateDirectory(targetFolder);
 
-                    string reportPath = Path.Combine(docpath, $"RELEASE-{excelName}_{DateTime.Now:yyyyMMdd_HHmm}.txt");
-                    File.WriteAllText(reportPath, report.ToString());
+                    string fileName = $"RELEASED TO-{excelName.ToUpper()}_{DateTime.Now:yyyyMMdd_HHmm}.html";
+                    string filePath = Path.Combine(targetFolder, fileName);
 
-                    System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(reportPath) { UseShellExecute = true });
+                    File.WriteAllText(filePath, finalHtml);
+
+                    Process.Start(new ProcessStartInfo(filePath) { UseShellExecute = true });
 
                 }
                 catch (Exception ex)
                 {
-                    MessageBox.Show("Error processing file: " + ex.Message);
+                    MessageBox.Show("Error: " + ex.Message);
                 }
             }
         }
+        private string GetHtmlTemplate(string source, string rows, int success, int fails)
+        {
+            return $@"
+    <html>
+    <head>
+        <style>
+            body {{ font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 40px; color: #333; }}
+            .header {{ text-align: center; border-bottom: 2px solid #3498db; padding-bottom: 10px; }}
+            h1 {{ color: #2c3e50; margin-bottom: 5px; }}
+            table {{ width: 100%; border-collapse: collapse; margin-top: 20px; }}
+            th {{ background-color: #3498db; color: white; padding: 12px; text-align: left; }}
+            td {{ padding: 10px; border-bottom: 1px solid #ddd; }}
+            tr:nth-child(even) {{ background-color: #f9f9f9; }}
+            .summary {{ margin-top: 30px; padding: 15px; background: #ecf0f1; border-radius: 5px; }}
+            .footer {{ margin-top: 20px; font-size: 0.8em; color: #7f8c8d; text-align: center; }}
+        </style>
+    </head>
+    <body>
+        <div class='header'>
+            <h1>BULK UPDATE REPORT</h1>
+            <p><strong>File Source:</strong> {source} | <strong>Date:</strong> {DateTime.Now:f}</p>
+        </div>
+
+        <table>
+            <thead>
+                <tr>
+                    <th>ISBN</th>
+                    <th>Title</th>
+                    <th>Old Qty</th>
+                    <th>New Qty</th>
+                </tr>
+            </thead>
+            <tbody>
+                {rows}
+            </tbody>
+        </table>
+
+        <div class='summary'>
+            <p><strong>Total Successfully Updated:</strong> {success}</p>
+            <p><strong>Total Failed (Not in DB):</strong> {fails}</p>
+        </div>
+
+        <div class='footer'>
+            Generated by Book Inventory System
+        </div>
+    </body>
+    </html>";
+        }
+
     }
 }

@@ -17,6 +17,9 @@ namespace NCB_INV
         public BookEditorForm(Book existingbook = null)
         {
             InitializeComponent();
+            this.FormBorderStyle = FormBorderStyle.FixedSingle;
+            this.MaximizeBox = false;
+            this.StartPosition = FormStartPosition.CenterScreen;
 
             if (existingbook != null) {
 

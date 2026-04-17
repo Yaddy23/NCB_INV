@@ -16,6 +16,9 @@ namespace NCB_INV
         public ImportBook()
         {
             InitializeComponent();
+            this.FormBorderStyle = FormBorderStyle.FixedSingle;
+            this.MaximizeBox = false;
+            this.StartPosition = FormStartPosition.CenterScreen;
         }
 
         private void RefreshBookList()
