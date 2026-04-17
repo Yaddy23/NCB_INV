@@ -3,9 +3,11 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using MongoDB.Bson.Serialization.Attributes;
 
 namespace NCB_INV
 {
+    [BsonIgnoreExtraElements]
     public class Book
     {
         public string ISBN { get; set; }
@@ -18,7 +20,6 @@ namespace NCB_INV
         public decimal Price { get; set; }
         public string Publisher { get; set; }
 
-        // This Constructor is REQUIRED for the "new Book(...)" code to work
         public Book(string isbn, string title, string edition, string year,
                     string author, string bind, int qty, decimal price, string publisher)
         {

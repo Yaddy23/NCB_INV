@@ -1,150 +1,103 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Data;
-using System.Linq;
-using System.Reflection.Metadata.Ecma335;
-using System.Text;
-using System.Threading.Tasks;
-using Microsoft.Data.Sqlite;
+using MongoDB.Driver;
+using MongoDB.Bson;
 
 namespace NCB_INV
 {
     public static class DBConnection
     {
-        private static string connString = "Data Source=NCBDB.db";
+        // Your connection string
+        private static string connString = "mongodb+srv://ncbdb_yad:Yadiyadiyad23@ncbinventory.hxsrfot.mongodb.net/?appName=NCBINVENTORY";
+        private static IMongoCollection<Book> _bookCollection;
+        private static IMongoDatabase _database;
+
+        static DBConnection()
+        {
+            var client = new MongoClient(connString);
+            _database = client.GetDatabase("NCB_INVENTORY");
+            _bookCollection = _database.GetCollection<Book>("Books");
+        }
 
         public static DataTable GetInventory()
         {
-            DataTable dt = new DataTable();
-            try
-            {
-                using (var con = new SqliteConnection(connString))
-                {
-                    con.Open();
-                    string query = "SELECT * FROM Books";
-                    using (var cmd = new SqliteCommand(query, con))
-                    {
-                        using (var reader = cmd.ExecuteReader())
-                        {
-                            dt.Load(reader);
-                        }
-                    }
-                }
-            }
-            catch (Exception ex)
-            {
-                throw new Exception("Error Loading Database: " + ex.Message);
-            }
-            return dt;
+            var list = _bookCollection.Find(new BsonDocument()).ToList();
+            return ToDataTable(list);
         }
 
         public static DataTable SearchBooks(string searchTerm)
         {
-            DataTable dt = new DataTable();
-            using (var con = new SqliteConnection(connString))
-            {
-                con.Open();
-                string query = "SELECT * FROM Books WHERE Title LIKE @search OR ISBN LIKE @search";
-                using (var cmd = new SqliteCommand(query, con))
-                {
-                    cmd.Parameters.AddWithValue("@search", "%" + searchTerm + "%");
-                    using (var reader = cmd.ExecuteReader())
-                    {
-                        dt.Load(reader);
-                    }
-                }
+            var filter = Builders<Book>.Filter.Regex(b => b.Title, new BsonRegularExpression(searchTerm, "i")) |
+                         Builders<Book>.Filter.Regex(b => b.ISBN, new BsonRegularExpression(searchTerm, "i"));
 
-            }
-            return dt;
+            var list = _bookCollection.Find(filter).ToList();
+            return ToDataTable(list);
         }
 
         public static bool DoesISBNExist(string isbn)
         {
-            using (var con = new SqliteConnection(connString))
-            {
-                con.Open();
-                string query = "SELECT COUNT(*) FROM Books WHERE ISBN = @isbn";
-                using (var cmd = new SqliteCommand(query, con))
-                {
-                    cmd.Parameters.AddWithValue("@isbn", isbn);
-                    return Convert.ToInt32(cmd.ExecuteScalar()) > 0;
-                }
-            }
+            return _bookCollection.Find(b => b.ISBN == isbn).Any();
         }
 
         public static void SaveBook(Book book)
         {
-            using (var con = new SqliteConnection(connString))
-            {
-                con.Open();
-                string query = @"INSERT OR REPLACE INTO Books (ISBN, Title, Edition, Year, Author, Bind, Qty, Price, Publisher) 
-                VALUES (@isbn, @title, @edition, @year, @author, @bind, @qty, @price, @publisher)";
-
-                using (var cmd = new SqliteCommand(query, con))
-                {
-                    cmd.Parameters.AddWithValue("@isbn", book.ISBN);
-                    cmd.Parameters.AddWithValue("@title", book.Title);
-                    cmd.Parameters.AddWithValue("@edition", book.Edition);
-                    cmd.Parameters.AddWithValue("@year", book.Year);
-                    cmd.Parameters.AddWithValue("@author", book.Author);
-                    cmd.Parameters.AddWithValue("@bind", book.Bind);
-                    cmd.Parameters.AddWithValue("@qty", book.Qty);
-                    cmd.Parameters.AddWithValue("@price", book.Price);
-                    cmd.Parameters.AddWithValue("@publisher", book.Publisher);
-
-                    cmd.ExecuteNonQuery();
-                }
-            }
+            var filter = Builders<Book>.Filter.Eq(b => b.ISBN, book.ISBN);
+            _bookCollection.ReplaceOne(filter, book, new ReplaceOptions { IsUpsert = true });
         }
 
         public static void DeleteBook(string isbn)
         {
-            using (var con = new SqliteConnection(connString))
-            {
-                con.Open();
-                string query = "DELETE FROM Books WHERE ISBN = @isbn";
-                using (var cmd = new SqliteCommand(query, con))
-                {
-                    cmd.Parameters.AddWithValue("@isbn", isbn);
-                    cmd.ExecuteNonQuery();
-                }
-            }
+            _bookCollection.DeleteOne(b => b.ISBN == isbn);
         }
 
         public static Book GetBookByISBN(string isbn)
         {
-            Book book = null;
+            return _bookCollection.Find(b => b.ISBN == isbn).FirstOrDefault();
+        }
 
-            using (var con = new SqliteConnection(connString))
+        // IMPROVED: This now uses the collection initialized in the constructor
+        public static void BulkImportBooks(List<Book> books)
+        {
+            if (books == null || books.Count == 0) return;
+
+            // We use ReplaceOneModel for an "Upsert" (Update if exists, Insert if new)
+            var bulkOps = new List<WriteModel<Book>>();
+
+            foreach (var book in books)
             {
-                con.Open();
-                string query = "SELECT * FROM Books WHERE ISBN = @isbn";
+                var upsertModel = new ReplaceOneModel<Book>(
+                    filter: Builders<Book>.Filter.Eq(b => b.ISBN, book.ISBN),
+                    replacement: book
+                )
+                { IsUpsert = true };
 
-                using (var cmd = new SqliteCommand(query, con))
-                {
-                    cmd.Parameters.AddWithValue("@isbn", isbn);
-
-                    using (var reader = cmd.ExecuteReader())
-                    {
-                        if (reader.Read())
-                        {
-                            
-                            book = new Book(
-                                reader["ISBN"].ToString(),
-                                reader["Title"].ToString(),
-                                reader["Edition"].ToString(),
-                                reader["Year"].ToString(),
-                                reader["Author"].ToString(),
-                                reader["Bind"].ToString(),
-                                Convert.ToInt32(reader["Qty"]),
-                                Convert.ToDecimal(reader["Price"]),
-                                reader["Publisher"].ToString()
-                            );
-                        }
-                    }
-                }
+                bulkOps.Add(upsertModel);
             }
-            return book;
+
+            // This is the fastest way to push 20k records
+            // Setting IsOrdered to false makes it even faster
+            _bookCollection.BulkWrite(bulkOps, new BulkWriteOptions { IsOrdered = false });
+        }
+
+        private static DataTable ToDataTable(List<Book> books)
+        {
+            DataTable dt = new DataTable();
+            dt.Columns.Add("ISBN");
+            dt.Columns.Add("Title");
+            dt.Columns.Add("Edition");
+            dt.Columns.Add("Year");
+            dt.Columns.Add("Author");
+            dt.Columns.Add("Bind");
+            dt.Columns.Add("Qty", typeof(int));
+            dt.Columns.Add("Price", typeof(decimal));
+            dt.Columns.Add("Publisher");
+
+            foreach (var b in books)
+            {
+                dt.Rows.Add(b.ISBN, b.Title, b.Edition, b.Year, b.Author, b.Bind, b.Qty, b.Price, b.Publisher);
+            }
+            return dt;
         }
     }
 }
