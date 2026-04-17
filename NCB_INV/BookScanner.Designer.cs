@@ -34,22 +34,24 @@
             lblTitle = new Label();
             lblOldQty = new Label();
             lblNewQty = new Label();
+            btnOut = new Button();
             SuspendLayout();
             // 
             // btnClose
             // 
-            btnClose.Location = new Point(519, 165);
+            btnClose.Location = new Point(579, 193);
             btnClose.Name = "btnClose";
-            btnClose.Size = new Size(134, 62);
+            btnClose.Size = new Size(74, 53);
             btnClose.TabIndex = 1;
             btnClose.Text = "Close Window";
             btnClose.UseVisualStyleBackColor = true;
+            btnClose.Click += btnClose_Click;
             // 
             // btnImport
             // 
-            btnImport.Location = new Point(519, 12);
+            btnImport.Location = new Point(309, 12);
             btnImport.Name = "btnImport";
-            btnImport.Size = new Size(134, 75);
+            btnImport.Size = new Size(200, 52);
             btnImport.TabIndex = 2;
             btnImport.Text = "Import Multiple ISBN to add QTY";
             btnImport.UseVisualStyleBackColor = true;
@@ -57,10 +59,10 @@
             // 
             // txtBarcodeScanner
             // 
-            txtBarcodeScanner.Font = new Font("Segoe UI", 13.8F, FontStyle.Regular, GraphicsUnit.Point, 0);
+            txtBarcodeScanner.Font = new Font("Segoe UI", 19.8000011F, FontStyle.Regular, GraphicsUnit.Point, 0);
             txtBarcodeScanner.Location = new Point(12, 12);
             txtBarcodeScanner.Name = "txtBarcodeScanner";
-            txtBarcodeScanner.Size = new Size(291, 38);
+            txtBarcodeScanner.Size = new Size(291, 51);
             txtBarcodeScanner.TabIndex = 3;
             txtBarcodeScanner.KeyDown += txtBarcodeScanner_KeyDown;
             // 
@@ -94,11 +96,22 @@
             lblNewQty.TabIndex = 8;
             lblNewQty.Text = ".";
             // 
+            // btnOut
+            // 
+            btnOut.Location = new Point(514, 12);
+            btnOut.Name = "btnOut";
+            btnOut.Size = new Size(134, 52);
+            btnOut.TabIndex = 9;
+            btnOut.Text = "Import Multiple ISBN to Release";
+            btnOut.UseVisualStyleBackColor = true;
+            btnOut.Click += btnOut_Click;
+            // 
             // BookScanner
             // 
             AutoScaleDimensions = new SizeF(8F, 20F);
             AutoScaleMode = AutoScaleMode.Font;
-            ClientSize = new Size(660, 239);
+            ClientSize = new Size(660, 258);
+            Controls.Add(btnOut);
             Controls.Add(lblNewQty);
             Controls.Add(lblOldQty);
             Controls.Add(lblTitle);
@@ -118,5 +131,6 @@
         private Label lblTitle;
         private Label lblOldQty;
         private Label lblNewQty;
+        private Button btnOut;
     }
 }

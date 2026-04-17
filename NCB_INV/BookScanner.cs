@@ -69,66 +69,189 @@ namespace NCB_INV
 
             if (ofd.ShowDialog() == DialogResult.OK)
             {
+
+                int isbnW = 15;
+                int titleW = 25;
+                int oldQtyW = 10;
+                int newQtyW = 10;
+
                 StringBuilder report = new StringBuilder();
-                report.AppendLine("===========================================");
-                report.AppendLine("       BULK QUANTITY UPDATE REPORT         ");
-                report.AppendLine($"       Date: {DateTime.Now.ToString("f")}");
-                report.AppendLine("===========================================");
-                report.AppendLine(string.Format("{0,-15} | {1,-30} | {2,-10}", "ISBN", "Title", "New Qty"));
-                report.AppendLine("------------------------------------------------------------");
+                report.AppendLine("============================================================");
+                report.AppendLine("                BULK QUANTITY UPDATE REPORT                 ");
+                report.AppendLine($"                Date: {DateTime.Now.ToString("f")}");
+                report.AppendLine("============================================================");
+
+                report.AppendLine(string.Format("{0,-15} | {1,-25} | {2,-10} | {3,-10}", "ISBN", "Title", "Old Qty", "New Qty"));
+                report.AppendLine(new string('-', 15 + 3 + 25 + 3 + 10 + 3 + 10));
 
                 int updatedCount = 0;
                 int failCount = 0;
 
-                using (var stream = File.Open(ofd.FileName, FileMode.Open, FileAccess.Read))
+                try
                 {
-                    using (var reader = ExcelReaderFactory.CreateReader(stream))
+                    using (var stream = File.Open(ofd.FileName, FileMode.Open, FileAccess.Read))
                     {
-                        var result = reader.AsDataSet();
-                        var table = result.Tables[0];
-
-                        for (int i = 1; i < table.Rows.Count; i++)
+                        using (var reader = ExcelReaderFactory.CreateReader(stream))
                         {
-                            string isbn = table.Rows[i][0].ToString().Trim();
-                            if (string.IsNullOrEmpty(isbn)) continue;
+                            var result = reader.AsDataSet();
+                            var table = result.Tables[0];
 
-                            Book book = DBConnection.GetBookByISBN(isbn);
-
-                            if (book != null)
+                            for (int i = 1; i < table.Rows.Count; i++)
                             {
-                              
-                                book.Qty += 1;
-                                DBConnection.SaveBook(book);
+                                string isbn = table.Rows[i][0]?.ToString().Trim() ?? "";
+                                if (string.IsNullOrEmpty(isbn)) continue;
 
-                              
-                                report.AppendLine(string.Format("{0,-15} | {1,-30} | {2,-10}",
-                                    book.ISBN,
-                                    book.Title.Length > 28 ? book.Title.Substring(0, 27) + ".." : book.Title,
-                                    book.Qty));
-                                updatedCount++;
-                            }
-                            else
-                            {
-                              
-                                report.AppendLine(string.Format("{0,-15} | {1,-30} | {2,-10}",
-                                    isbn, "NOT FOUND IN DATABASE", "N/A"));
-                                failCount++;
+                                Book book = DBConnection.GetBookByISBN(isbn);
+
+                                if (book != null)
+                                {
+                                    int oldQty = book.Qty;
+
+                                    book.Qty += 1;
+                                    DBConnection.SaveBook(book);
+
+                                    string cleanTitle = book.Title.Replace("\r", "").Replace("\n", " ").Replace("\t", " ").Trim();
+                                    if (cleanTitle.Length > (titleW - 3))
+                                        cleanTitle = cleanTitle.Substring(0, titleW - 3) + "..";
+
+                                    string formattedTitle = cleanTitle.PadRight(titleW);
+
+
+                                    report.AppendLine(string.Format("{0,-" + isbnW + "} | {1} | {2,-" + oldQtyW + "} | {3,-" + newQtyW + "}",
+                                        book.ISBN,
+                                        formattedTitle,
+                                        oldQty,
+                                        book.Qty));
+
+                                    updatedCount++;
+                                }
+                                else
+                                {
+                                    report.AppendLine(string.Format("{0,-" + isbnW + "} | {1} | {2,-" + newQtyW + "}",
+                                        isbn, "NOT FOUND IN DATABASE", "N/A"));
+
+                                    failCount++;
+                                }
                             }
                         }
                     }
+
+                    report.AppendLine("------------------------------------------------------------");
+                    report.AppendLine($"Total Successfully Updated: {updatedCount}");
+                    report.AppendLine($"Total Failed (Not in DB):   {failCount}");
+                    report.AppendLine("============================================================");
+
+                    string reportPath = Path.Combine(Application.StartupPath, $"SCANNEDBOOKS-UpdateReport_{DateTime.Now:yyyyMMdd_HHmm}.txt");
+                    File.WriteAllText(reportPath, report.ToString());
+
+                    System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(reportPath) { UseShellExecute = true });
+
+                    MessageBox.Show("Import Complete. Report generated.");
                 }
+                catch (Exception ex)
+                {
+                    MessageBox.Show("Error processing file: " + ex.Message);
+                }
+            }
+        }
 
-                report.AppendLine("------------------------------------------------------------");
-                report.AppendLine($"Total Successfully Updated: {updatedCount}");
-                report.AppendLine($"Total Failed (Not in DB): {failCount}");
-                report.AppendLine("===========================================");
+        private void btnClose_Click(object sender, EventArgs e)
+        {
+            this.Close();
+        }
 
-                string reportPath = Path.Combine(Application.StartupPath, $"UpdateReport_{DateTime.Now:yyyyMMdd_HHmm}.txt");
-                File.WriteAllText(reportPath, report.ToString());
-                
-                System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(reportPath) { UseShellExecute = true });
+        private void btnOut_Click(object sender, EventArgs e)
+        {
+            OpenFileDialog ofd = new OpenFileDialog { Filter = "Excel Files|*.xlsx;*.xls" };
 
-                MessageBox.Show("Import Complete. Report has been generated.");
+            if (ofd.ShowDialog() == DialogResult.OK)
+            {
+                string excelName = Path.GetFileNameWithoutExtension(ofd.FileName);
+
+                int isbnW = 15;
+                int titleW = 25;
+                int oldQtyW = 10;
+                int newQtyW = 10;
+
+                StringBuilder report = new StringBuilder();
+                report.AppendLine("============================================================");
+                report.AppendLine("                BULK RELEASE UPDATE REPORT                  ");
+                report.AppendLine($"                SCHOOL: {excelName}");
+                report.AppendLine($"                Date: {DateTime.Now.ToString("f")}");
+                report.AppendLine("============================================================");
+
+                report.AppendLine(string.Format("{0,-15} | {1,-25} | {2,-10} | {3,-10}", "ISBN", "Title", "Old Qty", "New Qty"));
+                report.AppendLine(new string('-', 15 + 3 + 25 + 3 + 10 + 3 + 10));
+
+                int updatedCount = 0;
+                int failCount = 0;
+
+                try
+                {
+                    using (var stream = File.Open(ofd.FileName, FileMode.Open, FileAccess.Read))
+                    {
+                        using (var reader = ExcelReaderFactory.CreateReader(stream))
+                        {
+                            var result = reader.AsDataSet();
+                            var table = result.Tables[0];
+
+                            for (int i = 1; i < table.Rows.Count; i++)
+                            {
+                                string isbn = table.Rows[i][0]?.ToString().Trim() ?? "";
+                                if (string.IsNullOrEmpty(isbn)) continue;
+
+                                Book book = DBConnection.GetBookByISBN(isbn);
+
+                                if (book != null)
+                                {
+                                    int oldQty = book.Qty;
+
+                                    book.Qty -= 1;
+                                    DBConnection.SaveBook(book);
+
+                                    string cleanTitle = book.Title.Replace("\r", "").Replace("\n", " ").Replace("\t", " ").Trim();
+                                    if (cleanTitle.Length > (titleW - 3))
+                                        cleanTitle = cleanTitle.Substring(0, titleW - 3) + "..";
+
+                                    string formattedTitle = cleanTitle.PadRight(titleW);
+
+
+                                    report.AppendLine(string.Format("{0,-" + isbnW + "} | {1} | {2,-" + oldQtyW + "} | {3,-" + newQtyW + "}",
+                                        book.ISBN,
+                                        formattedTitle,
+                                        oldQty,
+                                        book.Qty));
+
+                                    updatedCount++;
+                                }
+                                else
+                                {
+                                    report.AppendLine(string.Format("{0,-" + isbnW + "} | {1} | {2,-" + newQtyW + "}",
+                                        isbn, "NOT FOUND IN DATABASE", "N/A"));
+
+                                    failCount++;
+                                }
+                            }
+                        }
+                    }
+
+                    report.AppendLine("------------------------------------------------------------");
+                    report.AppendLine($"Total Successfully Updated: {updatedCount}");
+                    report.AppendLine($"Total Failed (Not in DB):   {failCount}");
+                    report.AppendLine("============================================================");
+
+                    string docpath = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);
+
+                    string reportPath = Path.Combine(docpath, $"RELEASE-{excelName}_{DateTime.Now:yyyyMMdd_HHmm}.txt");
+                    File.WriteAllText(reportPath, report.ToString());
+
+                    System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(reportPath) { UseShellExecute = true });
+
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show("Error processing file: " + ex.Message);
+                }
             }
         }
     }
