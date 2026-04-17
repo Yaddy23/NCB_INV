@@ -110,5 +110,41 @@ namespace NCB_INV
                 }
             }
         }
+
+        public static Book GetBookByISBN(string isbn)
+        {
+            Book book = null;
+
+            using (var con = new SqliteConnection(connString))
+            {
+                con.Open();
+                string query = "SELECT * FROM Books WHERE ISBN = @isbn";
+
+                using (var cmd = new SqliteCommand(query, con))
+                {
+                    cmd.Parameters.AddWithValue("@isbn", isbn);
+
+                    using (var reader = cmd.ExecuteReader())
+                    {
+                        if (reader.Read())
+                        {
+                            
+                            book = new Book(
+                                reader["ISBN"].ToString(),
+                                reader["Title"].ToString(),
+                                reader["Edition"].ToString(),
+                                reader["Year"].ToString(),
+                                reader["Author"].ToString(),
+                                reader["Bind"].ToString(),
+                                Convert.ToInt32(reader["Qty"]),
+                                Convert.ToDecimal(reader["Price"]),
+                                reader["Publisher"].ToString()
+                            );
+                        }
+                    }
+                }
+            }
+            return book;
+        }
     }
 }

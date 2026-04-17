@@ -118,8 +118,8 @@ namespace NCB_INV
                         using (var reader = ExcelReaderFactory.CreateReader(stream))
                         {
                             var result = reader.AsDataSet();
-                            var table = result.Tables[0]; // Assuming data is in the first sheet
-                            for (int i = 1; i < table.Rows.Count; i++) // Start from 1 to skip header
+                            var table = result.Tables[0];
+                            for (int i = 1; i < table.Rows.Count; i++)
                             {
                                 var row = table.Rows[i];
 
@@ -186,6 +186,12 @@ namespace NCB_INV
             {
                 MessageBox.Show("Please select a book from the table first.");
             }
+        }
+
+        private void btnScanBook_Click(object sender, EventArgs e)
+        {
+            BookScanner bookScanner = new BookScanner();
+            bookScanner.Show();
         }
     }
 }

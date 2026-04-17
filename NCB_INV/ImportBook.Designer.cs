@@ -34,10 +34,10 @@
             btnAddBook = new Button();
             btnModifyBook = new Button();
             btnDeleteBook = new Button();
-            label1 = new Label();
             btnSearch = new Button();
             txtSearch = new TextBox();
             label2 = new Label();
+            btnScanBook = new Button();
             ((System.ComponentModel.ISupportInitialize)dgvBookList).BeginInit();
             SuspendLayout();
             // 
@@ -55,7 +55,7 @@
             // 
             // btnReload
             // 
-            btnReload.Location = new Point(986, 437);
+            btnReload.Location = new Point(992, 15);
             btnReload.Name = "btnReload";
             btnReload.Size = new Size(148, 43);
             btnReload.TabIndex = 1;
@@ -65,7 +65,7 @@
             // 
             // btnImport
             // 
-            btnImport.Location = new Point(992, 196);
+            btnImport.Location = new Point(992, 184);
             btnImport.Name = "btnImport";
             btnImport.Size = new Size(148, 43);
             btnImport.TabIndex = 2;
@@ -75,7 +75,7 @@
             // 
             // btnAddBook
             // 
-            btnAddBook.Location = new Point(992, 147);
+            btnAddBook.Location = new Point(992, 135);
             btnAddBook.Name = "btnAddBook";
             btnAddBook.Size = new Size(148, 43);
             btnAddBook.TabIndex = 3;
@@ -85,7 +85,7 @@
             // 
             // btnModifyBook
             // 
-            btnModifyBook.Location = new Point(992, 245);
+            btnModifyBook.Location = new Point(992, 233);
             btnModifyBook.Name = "btnModifyBook";
             btnModifyBook.Size = new Size(148, 43);
             btnModifyBook.TabIndex = 4;
@@ -95,23 +95,13 @@
             // 
             // btnDeleteBook
             // 
-            btnDeleteBook.Location = new Point(992, 294);
+            btnDeleteBook.Location = new Point(992, 282);
             btnDeleteBook.Name = "btnDeleteBook";
             btnDeleteBook.Size = new Size(148, 43);
             btnDeleteBook.TabIndex = 5;
             btnDeleteBook.Text = "Delete Book";
             btnDeleteBook.UseVisualStyleBackColor = true;
             btnDeleteBook.Click += btnDeleteBook_Click;
-            // 
-            // label1
-            // 
-            label1.AutoSize = true;
-            label1.Font = new Font("Segoe UI", 18F, FontStyle.Bold, GraphicsUnit.Point, 0);
-            label1.Location = new Point(12, 439);
-            label1.Name = "label1";
-            label1.Size = new Size(143, 41);
-            label1.TabIndex = 6;
-            label1.Text = "STATUS: ";
             // 
             // btnSearch
             // 
@@ -141,15 +131,25 @@
             label2.TabIndex = 9;
             label2.Text = "BOOK LIST";
             // 
+            // btnScanBook
+            // 
+            btnScanBook.Location = new Point(992, 331);
+            btnScanBook.Name = "btnScanBook";
+            btnScanBook.Size = new Size(148, 43);
+            btnScanBook.TabIndex = 10;
+            btnScanBook.Text = "Scan Books";
+            btnScanBook.UseVisualStyleBackColor = true;
+            btnScanBook.Click += btnScanBook_Click;
+            // 
             // ImportBook
             // 
             AutoScaleDimensions = new SizeF(8F, 20F);
             AutoScaleMode = AutoScaleMode.Font;
-            ClientSize = new Size(1146, 499);
+            ClientSize = new Size(1146, 407);
+            Controls.Add(btnScanBook);
             Controls.Add(label2);
             Controls.Add(txtSearch);
             Controls.Add(btnSearch);
-            Controls.Add(label1);
             Controls.Add(btnDeleteBook);
             Controls.Add(btnModifyBook);
             Controls.Add(btnAddBook);
@@ -173,9 +173,9 @@
         private Button btnAddBook;
         private Button btnModifyBook;
         private Button btnDeleteBook;
-        private Label label1;
         private Button btnSearch;
         private TextBox txtSearch;
         private Label label2;
+        private Button btnScanBook;
     }
 }
