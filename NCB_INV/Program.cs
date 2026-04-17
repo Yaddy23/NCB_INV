@@ -12,7 +12,13 @@ namespace NCB_INV
             // To customize application configuration such as set high DPI settings or default font,
             // see https://aka.ms/applicationconfiguration.
             ApplicationConfiguration.Initialize();
-            Application.Run(new ImportBook());
+            using (Login log = new Login())
+            {
+                if (log.ShowDialog() == DialogResult.OK)
+                {
+                    Application.Run(new ImportBook());
+                }
+            }
         }
     }
 }
