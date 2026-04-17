@@ -103,23 +103,23 @@ namespace NCB_INV
                                     DBConnection.SaveBook(book);
 
                                     tableRows.AppendLine($@"
-                            <tr>
-                                <td>{book.ISBN}</td>
-                                <td>{book.Title}</td>
-                                <td>{oldQty}</td>
-                                <td style='color: green; font-weight: bold;'>{book.Qty}</td>
-                            </tr>");
-                                    updatedCount++;
+                                <tr>
+                                    <td>{book.ISBN}</td>
+                                    <td>{book.Title}</td>
+                                    <td>{oldQty}</td>
+                                    <td style='color: green; font-weight: bold;'>{book.Qty}</td>
+                                </tr>");
+                                        updatedCount++;
                                 }
                                 else
                                 {
                                     tableRows.AppendLine($@"
-                            <tr style='background-color: #ffe6e6;'>
-                                <td>{isbn}</td>
-                                <td style='color: red;'>NOT FOUND IN DATABASE</td>
-                                <td>N/A</td>
-                                <td>N/A</td>
-                            </tr>");
+                                <tr style='background-color: #ffe6e6;'>
+                                    <td>{isbn}</td>
+                                    <td style='color: red;'>NOT FOUND IN DATABASE</td>
+                                    <td>N/A</td>
+                                    <td>N/A</td>
+                                </tr>");
                                     failCount++;
                                 }
                             }
@@ -128,7 +128,7 @@ namespace NCB_INV
 
                     string finalHtml = GetHtmlTemplate(excelName, tableRows.ToString(), updatedCount, failCount);
 
-                    string targetFolder = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "BookSystem_Reports");
+                    string targetFolder = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "NCB_INVENTORY_Reports");
                     if (!Directory.Exists(targetFolder)) Directory.CreateDirectory(targetFolder);
 
                     string fileName = $"SCANNED BOOKS-_{DateTime.Now:yyyyMMdd_HHmm}.html";
@@ -185,23 +185,23 @@ namespace NCB_INV
                                     DBConnection.SaveBook(book);
 
                                     tableRows.AppendLine($@"
-                            <tr>
-                                <td>{book.ISBN}</td>
-                                <td>{book.Title}</td>
-                                <td>{oldQty}</td>
-                                <td style='color: green; font-weight: bold;'>{book.Qty}</td>
-                            </tr>");
+                                    <tr>
+                                        <td>{book.ISBN}</td>
+                                        <td>{book.Title}</td>
+                                        <td>{oldQty}</td>
+                                        <td style='color: green; font-weight: bold;'>{book.Qty}</td>
+                                    </tr>");
                                     updatedCount++;
                                 }
                                 else
                                 {
                                     tableRows.AppendLine($@"
-                            <tr style='background-color: #ffe6e6;'>
-                                <td>{isbn}</td>
-                                <td style='color: red;'>NOT FOUND IN DATABASE</td>
-                                <td>N/A</td>
-                                <td>N/A</td>
-                            </tr>");
+                                    <tr style='background-color: #ffe6e6;'>
+                                        <td>{isbn}</td>
+                                        <td style='color: red;'>NOT FOUND IN DATABASE</td>
+                                        <td>N/A</td>
+                                        <td>N/A</td>
+                                    </tr>");
                                     failCount++;
                                 }
                             }
@@ -210,7 +210,7 @@ namespace NCB_INV
 
                     string finalHtml = GetHtmlTemplate(excelName, tableRows.ToString(), updatedCount, failCount);
 
-                    string targetFolder = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "BookSystem_Reports");
+                    string targetFolder = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "NCB_INVENTORY_Reports");
                     if (!Directory.Exists(targetFolder)) Directory.CreateDirectory(targetFolder);
 
                     string fileName = $"RELEASED TO-{excelName.ToUpper()}_{DateTime.Now:yyyyMMdd_HHmm}.html";
@@ -229,51 +229,63 @@ namespace NCB_INV
         }
         private string GetHtmlTemplate(string source, string rows, int success, int fails)
         {
+            string logoPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "ncblogo.png"); // Make sure your file is named logo.png
+
+            // Convert to a URI format that browsers understand
+            string logoUri = new Uri(logoPath).AbsoluteUri;
+
             return $@"
-    <html>
-    <head>
-        <style>
-            body {{ font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 40px; color: #333; }}
-            .header {{ text-align: center; border-bottom: 2px solid #3498db; padding-bottom: 10px; }}
-            h1 {{ color: #2c3e50; margin-bottom: 5px; }}
-            table {{ width: 100%; border-collapse: collapse; margin-top: 20px; }}
-            th {{ background-color: #3498db; color: white; padding: 12px; text-align: left; }}
-            td {{ padding: 10px; border-bottom: 1px solid #ddd; }}
-            tr:nth-child(even) {{ background-color: #f9f9f9; }}
-            .summary {{ margin-top: 30px; padding: 15px; background: #ecf0f1; border-radius: 5px; }}
-            .footer {{ margin-top: 20px; font-size: 0.8em; color: #7f8c8d; text-align: center; }}
-        </style>
-    </head>
-    <body>
-        <div class='header'>
-            <h1>BULK UPDATE REPORT</h1>
-            <p><strong>File Source:</strong> {source} | <strong>Date:</strong> {DateTime.Now:f}</p>
-        </div>
+            <html>
+            <head>
+                <style>
+                    body {{ font-family: 'Segoe UI', Arial, sans-serif; margin: 40px; color: #333; }}
+                    .header-container {{ display: flex; align-items: center; border-bottom: 3px solid #3498db; padding-bottom: 15px; }}
+                    .logo {{ width: 100px; height: auto; margin-right: 25px; }}
+                    .header-text {{ flex-grow: 1; }}
+                    h1 {{ color: #2c3e50; margin: 0; font-size: 28px; letter-spacing: 1px; }}
+                    .meta {{ color: #7f8c8d; font-size: 0.9em; margin-top: 5px; }}
+                    table {{ width: 100%; border-collapse: collapse; margin-top: 25px; table-layout: fixed; }}
+                    th {{ background-color: #3498db; color: white; padding: 12px; text-align: left; text-transform: uppercase; font-size: 0.85em; }}
+                    td {{ padding: 10px; border-bottom: 1px solid #eee; word-wrap: break-word; }}
+                    tr:nth-child(even) {{ background-color: #f8f9fa; }}
+                    .summary {{ margin-top: 30px; padding: 20px; background: #f1f4f6; border-radius: 8px; border-left: 5px solid #3498db; }}
+                    .status-fail {{ background-color: #fff5f5; color: #c0392b; }}
+                    .qty-change {{ font-weight: bold; color: #27ae60; }}
+                </style>
+            </head>
+            <body>
+                <div class='header-container'>
+                    <img src='{logoUri}' class='logo' />
+                    <div class='header-text'>
+                        <h1>BULK UPDATE REPORT</h1>
+                        <div class='meta'>
+                            <strong>SOURCE FILE:</strong> {source} <br>
+                            <strong>PROCESSED ON:</strong> {DateTime.Now:f}
+                        </div>
+                    </div>
+                </div>
 
-        <table>
-            <thead>
-                <tr>
-                    <th>ISBN</th>
-                    <th>Title</th>
-                    <th>Old Qty</th>
-                    <th>New Qty</th>
-                </tr>
-            </thead>
-            <tbody>
-                {rows}
-            </tbody>
-        </table>
+                <table>
+                    <thead>
+                        <tr>
+                            <th style='width: 25%'>ISBN</th>
+                            <th style='width: 45%'>Title</th>
+                            <th style='width: 15%'>Old Qty</th>
+                            <th style='width: 15%'>New Qty</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {rows}
+                    </tbody>
+                </table>
 
-        <div class='summary'>
-            <p><strong>Total Successfully Updated:</strong> {success}</p>
-            <p><strong>Total Failed (Not in DB):</strong> {fails}</p>
-        </div>
-
-        <div class='footer'>
-            Generated by Book Inventory System
-        </div>
-    </body>
-    </html>";
+                <div class='summary'>
+                    <h3 style='margin-top: 0;'>Update Summary</h3>
+                    <p>Successfully Released: <strong>{success}</strong></p>
+                    <p>Failed / Not Found: <strong style='color: {(fails > 0 ? "#c0392b" : "#27ae60")};'>{fails}</strong></p>
+                </div>
+            </body>
+            </html>";
         }
 
     }
