@@ -10,12 +10,59 @@ namespace NCB_INV
 {
     public partial class ImportBook : Form
     {
+        private System.Windows.Forms.Timer syncTimer;
         public ImportBook()
         {
             InitializeComponent();
+            SetupAutoSync();
             this.FormBorderStyle = FormBorderStyle.FixedSingle;
             this.MaximizeBox = false;
             this.StartPosition = FormStartPosition.CenterScreen;
+        }
+
+        private void SetupAutoSync()
+        {
+            syncTimer = new System.Windows.Forms.Timer();
+            syncTimer.Interval = 30000;
+            syncTimer.Tick += async (s, e) => await RunBackgroundSync();
+            syncTimer.Start();
+        }
+
+        private bool isSyncing = false;
+        private async Task RunBackgroundSync()
+        {
+            if (isSyncing || !DBConnection.IsCloudAvailable())
+            {
+                // If we are offline, show it in the status
+                if (!DBConnection.IsCloudAvailable())
+                {
+                    lblSyncStatus.Text = "Status: Cloud Offline (Saving locally)";
+                    lblSyncStatus.ForeColor = Color.OrangeRed;
+                }
+                return;
+            }
+
+            isSyncing = true;
+            lblSyncStatus.Text = "Status: Syncing...";
+            lblSyncStatus.ForeColor = Color.Blue;
+
+            try
+            {
+                await Task.Run(() => DBConnection.SyncOfflineData());
+
+                // Update the label with the time of the last successful sync
+                lblSyncStatus.Text = $"Last Sync: {DateTime.Now:hh:mm:ss tt}";
+                lblSyncStatus.ForeColor = Color.Green;
+            }
+            catch
+            {
+                lblSyncStatus.Text = "Status: Sync Failed (Retrying)";
+                lblSyncStatus.ForeColor = Color.Red;
+            }
+            finally
+            {
+                isSyncing = false;
+            }
         }
 
         private void RefreshBookList()

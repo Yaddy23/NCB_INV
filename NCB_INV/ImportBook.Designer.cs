@@ -38,6 +38,7 @@
             txtSearch = new TextBox();
             label2 = new Label();
             btnScanBook = new Button();
+            lblSyncStatus = new Label();
             ((System.ComponentModel.ISupportInitialize)dgvBookList).BeginInit();
             SuspendLayout();
             // 
@@ -55,7 +56,7 @@
             // 
             // btnReload
             // 
-            btnReload.Location = new Point(992, 15);
+            btnReload.Location = new Point(992, 12);
             btnReload.Name = "btnReload";
             btnReload.Size = new Size(148, 43);
             btnReload.TabIndex = 1;
@@ -141,11 +142,22 @@
             btnScanBook.UseVisualStyleBackColor = true;
             btnScanBook.Click += btnScanBook_Click;
             // 
+            // lblSyncStatus
+            // 
+            lblSyncStatus.AutoSize = true;
+            lblSyncStatus.Font = new Font("Segoe UI", 16.2F, FontStyle.Regular, GraphicsUnit.Point, 0);
+            lblSyncStatus.Location = new Point(17, 398);
+            lblSyncStatus.Name = "lblSyncStatus";
+            lblSyncStatus.Size = new Size(92, 38);
+            lblSyncStatus.TabIndex = 11;
+            lblSyncStatus.Text = "Ready";
+            // 
             // ImportBook
             // 
             AutoScaleDimensions = new SizeF(8F, 20F);
             AutoScaleMode = AutoScaleMode.Font;
-            ClientSize = new Size(1146, 407);
+            ClientSize = new Size(1146, 449);
+            Controls.Add(lblSyncStatus);
             Controls.Add(btnScanBook);
             Controls.Add(label2);
             Controls.Add(txtSearch);
@@ -177,5 +189,6 @@
         private TextBox txtSearch;
         private Label label2;
         private Button btnScanBook;
+        private Label lblSyncStatus;
     }
 }
