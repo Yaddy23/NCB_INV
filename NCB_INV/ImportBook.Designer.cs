@@ -53,6 +53,7 @@
             dgvBookList.RowHeadersWidth = 51;
             dgvBookList.Size = new Size(974, 273);
             dgvBookList.TabIndex = 0;
+            dgvBookList.CellFormatting += dgvBookList_CellFormatting;
             // 
             // btnReload
             // 

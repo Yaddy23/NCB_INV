@@ -49,6 +49,11 @@ namespace NCB_INV
             {
                 await Task.Run(() => DBConnection.SyncOfflineData());
 
+                this.Invoke((MethodInvoker)delegate
+                {
+                    RefreshBookList();
+                });
+
                 lblSyncStatus.Text = $"Last Sync: {DateTime.Now:hh:mm:ss tt}";
                 lblSyncStatus.ForeColor = Color.Green;
             }
@@ -65,16 +70,10 @@ namespace NCB_INV
 
         private void RefreshBookList()
         {
-            try
-            {
-                DataTable dt = DBConnection.GetInventory();
-                dgvBookList.DataSource = dt;
-                dgvBookList.AutoResizeColumns();
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show("Cloud Connection Error: " + ex.Message, "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
-            }
+            DataTable freshData = DBConnection.GetInventory();
+
+            // Re-bind the data source
+            dgvBookList.DataSource = freshData;
         }
 
         private void ImportBook_Load(object sender, EventArgs e)
@@ -162,7 +161,7 @@ namespace NCB_INV
                             var result = reader.AsDataSet();
                             var table = result.Tables[0];
 
-                            for (int i = 1; i < table.Rows.Count; i++) 
+                            for (int i = 1; i < table.Rows.Count; i++)
                             {
                                 var row = table.Rows[i];
 
@@ -247,6 +246,23 @@ namespace NCB_INV
         {
             BookScanner bookScanner = new BookScanner();
             bookScanner.Show();
+        }
+
+        private void dgvBookList_CellFormatting(object sender, DataGridViewCellFormattingEventArgs e)
+        {
+            if (this.dgvBookList.Columns[e.ColumnIndex].Name == "Qty" && e.Value != null)
+            {
+                if (int.TryParse(e.Value.ToString(), out int qty))
+                {
+                    DataGridViewRow row = dgvBookList.Rows[e.RowIndex];
+                    if (qty == 0)
+                        row.DefaultCellStyle.BackColor = Color.FromArgb(255, 200, 200); // Light Red
+                    else if (qty <= 5)
+                        row.DefaultCellStyle.BackColor = Color.FromArgb(255, 255, 200); // Light Yellow
+                    else
+                        row.DefaultCellStyle.BackColor = Color.White; // Reset if high stock
+                }
+            }
         }
     }
 }

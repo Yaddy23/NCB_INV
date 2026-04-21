@@ -124,7 +124,7 @@ namespace NCB_INV
                                         </tr>");
                                     updatedCount++;
 
-                                    if (bulkList.Count >= 1000)
+                                    if (bulkList.Count >= 20000)
                                     {
                                         DBConnection.BulkImportBooks(bulkList);
                                         bulkList.Clear();

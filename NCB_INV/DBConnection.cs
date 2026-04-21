@@ -41,7 +41,25 @@ namespace NCB_INV
 
             try
             {
-                BulkImportBooks(offlineBooks);
+                var bulkOps = new List<WriteModel<Book>>();
+
+                foreach (var book in offlineBooks)
+                {
+                    var updateModel = new UpdateOneModel<Book>(
+                        filter: Builders<Book>.Filter.Eq(b => b.ISBN, book.ISBN),
+                        update: Builders<Book>.Update
+                            .Inc(b => b.Qty, book.Qty)
+                            .Set(b => b.Title, book.Title)
+                            .Set(b => b.Author, book.Author)
+                            .Set(b => b.Price, book.Price)
+                            .Set(b => b.Publisher, book.Publisher)
+                    )
+                    { IsUpsert = true };
+
+                    bulkOps.Add(updateModel);
+                }
+
+                await _bookCollection.BulkWriteAsync(bulkOps);
 
                 using (var connection = new SqliteConnection(sqliteConn))
                 {
@@ -53,7 +71,7 @@ namespace NCB_INV
             }
             catch (Exception ex)
             {
-                throw new Exception("Sync failed: " + ex.Message);
+                Console.WriteLine("Sync Error: " + ex.Message);
             }
         }
 
@@ -99,17 +117,28 @@ namespace NCB_INV
         public static DataTable GetInventory()
         {
             List<Book> cloudList = new List<Book>();
-            List<Book> localList = new List<Book>();
+            List<Book> localList = GetLocalBooks();
+            bool online = IsCloudAvailable();
 
-            if (IsCloudAvailable())
+            if (online)
             {
-                try { cloudList = _bookCollection.Find(new BsonDocument()).ToList(); }
-                catch {  }
+                try
+                {
+                    cloudList = _bookCollection.Find(new BsonDocument()).ToList();
+                }
+                catch { /* Fallback to offline only if Mongo fails */ }
             }
 
-            localList = GetLocalBooks();
+            List<Book> combined;
 
-            var combined = localList.Union(cloudList, new BookIsbnComparer()).ToList();
+            if (online)
+            {
+                combined = cloudList.Union(localList, new BookIsbnComparer()).ToList();
+            }
+            else
+            {
+                combined = localList.Union(cloudList, new BookIsbnComparer()).ToList();
+            }
 
             return ToDataTable(combined);
         }
@@ -197,6 +226,46 @@ namespace NCB_INV
             }
         }
 
+        public static void BulkSaveToSQLite(List<Book> books)
+        {
+            using (var connection = new SqliteConnection(sqliteConn))
+            {
+                connection.Open();
+                using (var transaction = connection.BeginTransaction())
+                {
+                    var cmd = connection.CreateCommand();
+                    cmd.CommandText = @"INSERT OR REPLACE INTO OfflineBooks 
+                    (ISBN, Title, Edition,Year, Author, Bind, Price, Qty, Publisher) 
+                    VALUES ($isbn, $title, $edition, $year, $author, $bind, $price, $qty, $publisher)";
+
+                    cmd.Parameters.Add("$isbn", SqliteType.Text);
+                    cmd.Parameters.Add("$title", SqliteType.Text);
+                    cmd.Parameters.Add("$edition", SqliteType.Text);
+                    cmd.Parameters.Add("$year", SqliteType.Text);
+                    cmd.Parameters.Add("$author", SqliteType.Text);
+                    cmd.Parameters.Add("$bind", SqliteType.Text);
+                    cmd.Parameters.Add("$price", SqliteType.Real);
+                    cmd.Parameters.Add("$qty", SqliteType.Integer);
+                    cmd.Parameters.Add("$publisher", SqliteType.Text);
+
+                    foreach (var b in books)
+                    {
+                        cmd.Parameters["$isbn"].Value = b.ISBN;
+                        cmd.Parameters["$title"].Value = b.Title;
+                        cmd.Parameters["$edition"].Value = b.Edition;
+                        cmd.Parameters["$year"].Value = b.Year;
+                        cmd.Parameters["$author"].Value = b.Author;
+                        cmd.Parameters["$bind"].Value = b.Bind;
+                        cmd.Parameters["$price"].Value = b.Price;
+                        cmd.Parameters["$qty"].Value = b.Qty;
+                        cmd.Parameters["$publisher"].Value = b.Publisher;
+                        cmd.ExecuteNonQuery();
+                    }
+                    transaction.Commit();
+                }
+            }
+        }
+
         public static void SaveBook(Book book)
         {
             if (IsCloudAvailable())
@@ -235,13 +304,12 @@ namespace NCB_INV
                         filter: Builders<Book>.Filter.Eq(b => b.ISBN, book.ISBN),
                         update: Builders<Book>.Update
                             .Set(b => b.Title, book.Title)
-                            .Set(b => b.Edition, book.Edition)
                             .Set(b => b.Year, book.Year)
                             .Set(b => b.Author, book.Author)
                             .Set(b => b.Bind, book.Bind)
                             .Set(b => b.Price, book.Price)
                             .Set(b => b.Publisher, book.Publisher)
-                            .SetOnInsert(b => b.Qty, book.Qty)
+                            .Set(b => b.Qty, book.Qty)
                     )
                     { IsUpsert = true };
 
@@ -252,7 +320,7 @@ namespace NCB_INV
             }
             else
             {
-                foreach (var b in books) SaveToSQLite(b);
+                BulkSaveToSQLite(books);
             }
         }
 
