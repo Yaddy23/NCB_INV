@@ -10,7 +10,7 @@ namespace NCB_INV
 {
     public static class DBConnection
     {
-        private static string connString = "mongodb+srv://ncbdb_yad:Yadiyadiyad23@ncbinventory.hxsrfot.mongodb.net/?appName=NCBINVENTORY";
+        private static string connString = Properties.Settings.Default.MongoConn;
         private static IMongoCollection<Book> _bookCollection;
         private static IMongoDatabase _database;
         private static string sqliteConn = "Data Source=local_inventory.db";
@@ -41,10 +41,8 @@ namespace NCB_INV
 
             try
             {
-                // Use your existing BulkImport logic to push to Atlas
                 BulkImportBooks(offlineBooks);
 
-                // If successful, clear the local SQLite table so we don't sync duplicates next time
                 using (var connection = new SqliteConnection(sqliteConn))
                 {
                     await connection.OpenAsync();

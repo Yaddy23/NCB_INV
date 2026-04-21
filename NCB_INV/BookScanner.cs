@@ -214,5 +214,10 @@ namespace NCB_INV
         }
 
         private void btnClose_Click(object sender, EventArgs e) => this.Close();
+
+        private void BookScanner_Load(object sender, EventArgs e)
+        {
+
+        }
     }
 }

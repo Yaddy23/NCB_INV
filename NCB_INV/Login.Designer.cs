@@ -65,6 +65,7 @@
             textBox1.Size = new Size(231, 61);
             textBox1.TabIndex = 3;
             textBox1.TextAlign = HorizontalAlignment.Center;
+            textBox1.TextChanged += textBox1_TextChanged;
             textBox1.KeyDown += textBox1_KeyDown;
             // 
             // lblStatus

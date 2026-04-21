@@ -33,7 +33,6 @@ namespace NCB_INV
         {
             if (isSyncing || !DBConnection.IsCloudAvailable())
             {
-                // If we are offline, show it in the status
                 if (!DBConnection.IsCloudAvailable())
                 {
                     lblSyncStatus.Text = "Status: Cloud Offline (Saving locally)";
@@ -50,7 +49,6 @@ namespace NCB_INV
             {
                 await Task.Run(() => DBConnection.SyncOfflineData());
 
-                // Update the label with the time of the last successful sync
                 lblSyncStatus.Text = $"Last Sync: {DateTime.Now:hh:mm:ss tt}";
                 lblSyncStatus.ForeColor = Color.Green;
             }
