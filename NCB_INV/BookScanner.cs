@@ -36,13 +36,13 @@ namespace NCB_INV
                 {
                     int oldQty = currentbook.Qty;
                     currentbook.Qty += 1;
-
                     DBConnection.SaveBook(currentbook);
 
                     lblTitle.Text = $"Title: {currentbook.Title}";
                     lblOldQty.Text = $"Previous: {oldQty}";
                     lblNewQty.Text = $"New Total: {currentbook.Qty}";
                     lblNewQty.ForeColor = Color.Green;
+                    DBConnection.LogTransaction(txtBarcodeScanner.Text, lblTitle.Text, oldQty, currentbook.Qty, "Initial Stock Entry");
                 }
                 else
                 {
@@ -81,6 +81,8 @@ namespace NCB_INV
 
                 List<Book> bulkList = new List<Book>();
 
+                List<Transaction> transactionLogs = new List<Transaction>();
+
                 try
                 {
                     Cursor.Current = Cursors.WaitCursor;
@@ -110,24 +112,37 @@ namespace NCB_INV
                                         continue;
                                     }
 
-                                    if (isStockIn) book.Qty += 1;
-                                    else book.Qty -= 1;
+                                    int change = isStockIn ? 1 : -1;
+                                    book.Qty += change;
 
                                     bulkList.Add(book);
 
+                                    transactionLogs.Add(new Transaction
+                                    {
+                                        ISBN = book.ISBN,
+                                        Title = book.Title,
+                                        ChangeAmount = change,
+                                        NewTotal = book.Qty,
+                                        Reason = isStockIn ? "Bulk Stock-In" : "Bulk Release",
+                                        Timestamp = DateTime.Now
+                                    });
+
                                     tableRows.AppendLine($@"
-                                        <tr>
-                                            <td>{book.ISBN}</td>
-                                            <td>{book.Title}</td>
-                                            <td>{oldQty}</td>
-                                            <td style='color: {(isStockIn ? "green" : "blue")}; font-weight: bold;'>{book.Qty}</td>
-                                        </tr>");
+                                <tr>
+                                    <td>{book.ISBN}</td>
+                                    <td>{book.Title}</td>
+                                    <td>{oldQty}</td>
+                                    <td style='color: {(isStockIn ? "green" : "blue")}; font-weight: bold;'>{book.Qty}</td>
+                                </tr>");
                                     updatedCount++;
 
                                     if (bulkList.Count >= 20000)
                                     {
                                         DBConnection.BulkImportBooks(bulkList);
+                                        DBConnection.LogBulkTransactions(transactionLogs);
+
                                         bulkList.Clear();
+                                        transactionLogs.Clear();
                                     }
                                 }
                                 else
@@ -139,16 +154,16 @@ namespace NCB_INV
                         }
                     }
 
+                    // 4. ADDED: Final push for remaining records
                     if (bulkList.Count > 0)
                     {
                         DBConnection.BulkImportBooks(bulkList);
+                        DBConnection.LogBulkTransactions(transactionLogs);
                     }
 
                     string reportTitle = isStockIn ? "BULK STOCK-IN" : "BULK RELEASE";
                     string finalHtml = GetHtmlTemplate(excelName, tableRows.ToString(), updatedCount, failCount, reportTitle);
-
                     GenerateAndOpenReport(finalHtml, isStockIn);
-                    MessageBox.Show("Cloud Update Complete!", "NCB Inventory", MessageBoxButtons.OK, MessageBoxIcon.Information);
                 }
                 catch (Exception ex)
                 {
@@ -216,6 +231,11 @@ namespace NCB_INV
         private void btnClose_Click(object sender, EventArgs e) => this.Close();
 
         private void BookScanner_Load(object sender, EventArgs e)
+        {
+
+        }
+
+        private void txtBarcodeScanner_TextChanged(object sender, EventArgs e)
         {
 
         }

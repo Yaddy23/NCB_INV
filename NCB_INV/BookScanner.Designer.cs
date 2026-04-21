@@ -64,6 +64,7 @@
             txtBarcodeScanner.Name = "txtBarcodeScanner";
             txtBarcodeScanner.Size = new Size(291, 51);
             txtBarcodeScanner.TabIndex = 3;
+            txtBarcodeScanner.TextChanged += txtBarcodeScanner_TextChanged;
             txtBarcodeScanner.KeyDown += txtBarcodeScanner_KeyDown;
             // 
             // lblTitle

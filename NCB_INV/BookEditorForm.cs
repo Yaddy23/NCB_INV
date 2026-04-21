@@ -21,7 +21,8 @@ namespace NCB_INV
             this.MaximizeBox = false;
             this.StartPosition = FormStartPosition.CenterScreen;
 
-            if (existingbook != null) {
+            if (existingbook != null)
+            {
 
                 //EDIT
                 isEditMode = true;
@@ -77,9 +78,55 @@ namespace NCB_INV
                 decimal.Parse(txtPrice.Text),
                 txtPublisher.Text
             );
-
+            DBConnection.LogTransaction(txtISBN.Text, txtTitle.Text, int.Parse(txtQty.Text), int.Parse(txtQty.Text), "Initial Stock Entry");
             this.DialogResult = DialogResult.OK;
             this.Close();
+        }
+
+        private async void txtISBN_KeyDown(object sender, KeyEventArgs e)
+        {
+            if (e.KeyCode == Keys.Enter)
+            {
+                string isbn = txtISBN.Text.Trim();
+
+                if (isbn.Length >= 10)
+                {
+                    e.SuppressKeyPress = true;
+
+                    lblStatus.Text = "Scanning Cloud...";
+                    Cursor.Current = Cursors.WaitCursor;
+
+                    try
+                    {
+                        Book foundBook = await DBConnection.ScrapeBookData(isbn);
+
+                        if (foundBook != null)
+                        {
+                            txtTitle.Text = foundBook.Title;
+                            txtEdition.Text = foundBook.Edition;
+                            txtYear.Text = foundBook.Year;
+                            txtAuthor.Text = foundBook.Author;
+                            txtBind.Text = foundBook.Bind;
+                            txtPublisher.Text = foundBook.Publisher;
+
+                            txtPrice.Focus();
+                            lblStatus.Text = "Stats: Success!";
+                        }
+                        else
+                        {
+                            lblStatus.Text = "Status: Not found. Please type details.";
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        lblStatus.Text = "Error: " + ex.Message;
+                    }
+                    finally
+                    {
+                        Cursor.Current = Cursors.Default;
+                    }
+                }
+            }
         }
     }
 }

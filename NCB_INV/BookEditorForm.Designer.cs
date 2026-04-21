@@ -48,6 +48,7 @@
             label9 = new Label();
             btnAddBook = new Button();
             btnCancel = new Button();
+            lblStatus = new Label();
             SuspendLayout();
             // 
             // txtISBN
@@ -56,6 +57,7 @@
             txtISBN.Name = "txtISBN";
             txtISBN.Size = new Size(228, 27);
             txtISBN.TabIndex = 0;
+            txtISBN.KeyDown += txtISBN_KeyDown;
             // 
             // txtTitle
             // 
@@ -213,11 +215,21 @@
             btnCancel.Text = "Cancel";
             btnCancel.UseVisualStyleBackColor = true;
             // 
+            // lblStatus
+            // 
+            lblStatus.AutoSize = true;
+            lblStatus.Location = new Point(25, 329);
+            lblStatus.Name = "lblStatus";
+            lblStatus.Size = new Size(62, 20);
+            lblStatus.TabIndex = 28;
+            lblStatus.Text = "STATUS:";
+            // 
             // BookEditorForm
             // 
             AutoScaleDimensions = new SizeF(8F, 20F);
             AutoScaleMode = AutoScaleMode.Font;
-            ClientSize = new Size(511, 313);
+            ClientSize = new Size(511, 358);
+            Controls.Add(lblStatus);
             Controls.Add(btnCancel);
             Controls.Add(btnAddBook);
             Controls.Add(label9);
@@ -267,5 +279,6 @@
         private Label label9;
         private Button btnAddBook;
         private Button btnCancel;
+        private Label lblStatus;
     }
 }

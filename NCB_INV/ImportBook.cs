@@ -104,6 +104,7 @@ namespace NCB_INV
                     }
                     else
                     {
+
                         DBConnection.SaveBook(editor.BookData);
                         RefreshBookList();
                     }

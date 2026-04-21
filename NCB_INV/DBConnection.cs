@@ -4,6 +4,9 @@ using System.Data;
 using MongoDB.Driver;
 using MongoDB.Bson;
 using Microsoft.Data.Sqlite;
+using System.Net.Http;
+using System.Threading.Tasks;
+using Newtonsoft.Json.Linq;
 
 
 namespace NCB_INV
@@ -30,6 +33,145 @@ namespace NCB_INV
             }
 
             InitSQLite();
+        }
+
+        public static async Task<Book> ScrapeBookData(string isbn)
+        {
+            // 1. Try Google Books First
+            Book book = await GetFromGoogleBooks(isbn);
+
+            // 2. Fallback to OpenLibrary if Google fails
+            if (book == null)
+            {
+                book = await GetFromOpenLibrary(isbn);
+            }
+
+            return book;
+        }
+
+        private static async Task<Book> GetFromGoogleBooks(string isbn)
+        {
+            string cleanIsbn = isbn.Replace("-", "").Replace(" ", "").Trim();
+
+            using (HttpClient client = new HttpClient())
+            {
+                try
+                {
+                    client.DefaultRequestHeaders.Add("User-Agent", "C# Inventory App");
+
+                    string url = $"https://www.googleapis.com/books/v1/volumes?q=isbn:{cleanIsbn}";
+                    string response = await client.GetStringAsync(url);
+
+                    System.Diagnostics.Debug.WriteLine("API Response: " + response);
+
+                    JObject json = JObject.Parse(response);
+
+                    if (json["totalItems"]?.Value<int>() > 0)
+                    {
+                        var info = json["items"][0]["volumeInfo"];
+
+                        return new Book(
+                            cleanIsbn,
+                            info["title"]?.ToString() ?? "Unknown",
+                            "1st",
+                            info["publishedDate"]?.ToString().Split('-')[0] ?? "N/A",
+                            info["authors"] != null ? string.Join(", ", info["authors"]) : "Unknown",
+                            "Unknown",
+                            1,
+                            0.00m,
+                            info["publisher"]?.ToString() ?? "Unknown"
+                        );
+                    }
+                }
+                catch (Exception ex)
+                {
+                    System.Diagnostics.Debug.WriteLine("Scraper Error: " + ex.Message);
+                }
+                return null;
+            }
+        }
+
+        private static async Task<Book> GetFromOpenLibrary(string isbn)
+        {
+            string cleanIsbn = isbn.Replace("-", "").Replace(" ", "").Trim();
+
+            using (HttpClient client = new HttpClient())
+            {
+                try
+                {
+                    client.DefaultRequestHeaders.Add("User-Agent", "C# Inventory App");
+
+                    string url = $"https://openlibrary.org/api/books?bibkeys=ISBN:{cleanIsbn}&format=json&jscmd=data";
+                    string response = await client.GetStringAsync(url);
+                    JObject json = JObject.Parse(response);
+
+                    string key = $"ISBN:{cleanIsbn}";
+
+                    if (json[key] != null)
+                    {
+                        var info = json[key];
+
+                        return new Book(
+                            cleanIsbn,
+                            info["title"]?.ToString() ?? "Unknown",
+                            "1st",
+                            info["publish_date"]?.ToString().Split(' ').Last() ?? "N/A",
+                            info["authors"] != null ? string.Join(", ", info["authors"].Select(a => a["name"])) : "Unknown",
+                            "Unknown",
+                            1,
+                            0.00m,
+                            info["publishers"] != null ? info["publishers"][0]["name"]?.ToString() : "Unknown"
+                        );
+                    }
+                }
+                catch (Exception ex)
+                {
+                    System.Diagnostics.Debug.WriteLine("OpenLibrary Error: " + ex.Message);
+                }
+                return null;
+            }
+        }
+
+        public static void LogTransaction(string isbn, string title, int change, int total, string reason)
+        {
+            try
+            {
+                // This uses the 'Database' property defined above
+                var collection = _database.GetCollection<Transaction>("Transactions");
+
+                var entry = new Transaction
+                {
+                    ISBN = isbn,
+                    Title = title,
+                    ChangeAmount = change,
+                    NewTotal = total,
+                    Reason = reason,
+                    Timestamp = DateTime.Now
+                };
+
+                collection.InsertOne(entry);
+            }
+            catch (Exception ex)
+            {
+                // Log to debug console if the transaction fails to save
+                System.Diagnostics.Debug.WriteLine("Transaction Log Error: " + ex.Message);
+            }
+        }
+
+        public static void LogBulkTransactions(List<Transaction> transactions)
+        {
+            try
+            {
+                if (transactions == null || transactions.Count == 0) return;
+
+                var collection = _database.GetCollection<Transaction>("Transactions");
+
+                collection.InsertMany(transactions);
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine("Bulk Log Error: " + ex.Message);
+            }
         }
 
         public static async Task SyncOfflineData()
