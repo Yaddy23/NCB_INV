@@ -67,6 +67,7 @@ namespace NCB_INV
                 return;
             }
 
+            string currentuser = DBConnection.CurrentSession.User.Username;
             BookData = new Book(
                 txtISBN.Text,
                 txtTitle.Text,
@@ -78,7 +79,7 @@ namespace NCB_INV
                 decimal.Parse(txtPrice.Text),
                 txtPublisher.Text
             );
-            DBConnection.LogTransaction(txtISBN.Text, txtTitle.Text, int.Parse(txtQty.Text), int.Parse(txtQty.Text), "Initial Stock Entry");
+            DBConnection.LogTransaction(txtISBN.Text, txtTitle.Text, int.Parse(txtQty.Text),  txtQty.Text, "Initial Stock Entry", currentuser);
             this.DialogResult = DialogResult.OK;
             this.Close();
         }

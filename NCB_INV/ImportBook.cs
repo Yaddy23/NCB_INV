@@ -1,10 +1,11 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Data;
+using System.IO;
 using System.Text;
 using System.Windows.Forms;
 using ExcelDataReader;
-using System.IO;
+using static NCB_INV.DBConnection;
 
 namespace NCB_INV
 {
@@ -104,8 +105,16 @@ namespace NCB_INV
                     }
                     else
                     {
-
                         DBConnection.SaveBook(editor.BookData);
+
+                        DBConnection.LogTransaction(
+                        editor.BookData.ISBN,
+                        editor.BookData.Title,
+                        editor.BookData.Qty,    
+                        editor.BookData.Qty.ToString(),      
+                        "New Book Added",          
+                        CurrentSession.User.DisplayName 
+                );
                         RefreshBookList();
                     }
                 }
@@ -117,6 +126,8 @@ namespace NCB_INV
             if (dgvBookList.SelectedRows.Count > 0)
             {
                 var row = dgvBookList.SelectedRows[0];
+                int oldQty = Convert.ToInt32(row.Cells["Qty"].Value);
+
                 Book selected = new Book(
                     row.Cells["ISBN"].Value.ToString(),
                     row.Cells["Title"].Value.ToString(),
@@ -124,7 +135,7 @@ namespace NCB_INV
                     row.Cells["Year"].Value.ToString(),
                     row.Cells["Author"].Value.ToString(),
                     row.Cells["Bind"].Value.ToString(),
-                    Convert.ToInt32(row.Cells["Qty"].Value),
+                    oldQty,
                     Convert.ToDecimal(row.Cells["Price"].Value),
                     row.Cells["Publisher"].Value.ToString()
                 );
@@ -134,13 +145,20 @@ namespace NCB_INV
                     if (editor.ShowDialog() == DialogResult.OK)
                     {
                         DBConnection.SaveBook(editor.BookData);
+
+                        int change = editor.BookData.Qty - oldQty;
+                        DBConnection.LogTransaction(
+                            editor.BookData.ISBN,
+                            editor.BookData.Title,
+                            change,                
+                            editor.BookData.Qty.ToString(),     
+                            "Stock Modified",
+                            CurrentSession.User.DisplayName
+                        );
+
                         RefreshBookList();
                     }
                 }
-            }
-            else
-            {
-                MessageBox.Show("Please select a book to edit.");
             }
         }
         private void btnImport_Click(object sender, EventArgs e)
@@ -152,8 +170,8 @@ namespace NCB_INV
                 try
                 {
                     Cursor.Current = Cursors.WaitCursor;
-
                     List<Book> batchList = new List<Book>();
+                    int totalImportedCount = 0;
 
                     using (var stream = File.Open(ofd.FileName, FileMode.Open, FileAccess.Read))
                     {
@@ -165,7 +183,6 @@ namespace NCB_INV
                             for (int i = 1; i < table.Rows.Count; i++)
                             {
                                 var row = table.Rows[i];
-
                                 if (row[0] == DBNull.Value || string.IsNullOrWhiteSpace(row[0].ToString()))
                                     continue;
 
@@ -182,6 +199,7 @@ namespace NCB_INV
                                 );
 
                                 batchList.Add(excelBook);
+                                totalImportedCount++;
 
                                 if (batchList.Count >= 5000)
                                 {
@@ -197,7 +215,16 @@ namespace NCB_INV
                         DBConnection.BulkImportBooks(batchList);
                     }
 
-                    MessageBox.Show("Cloud Bulk Import Successful!", "Success", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    DBConnection.LogTransaction(
+                        "BULK_IMPORT",
+                        $"File: {Path.GetFileName(ofd.FileName)} ({totalImportedCount} books)",
+                        totalImportedCount,
+                        "0",             
+                        "Bulk Import",
+                        CurrentSession.User.DisplayName
+                    );
+
+                    MessageBox.Show($"Cloud Bulk Import Successful! Total: {totalImportedCount} books.", "Success", MessageBoxButtons.OK, MessageBoxIcon.Information);
                     RefreshBookList();
                 }
                 catch (Exception ex)
@@ -215,31 +242,26 @@ namespace NCB_INV
         {
             if (dgvBookList.SelectedRows.Count > 0)
             {
-                string isbn = dgvBookList.SelectedRows[0].Cells["ISBN"].Value.ToString();
-                string title = dgvBookList.SelectedRows[0].Cells["Title"].Value.ToString();
+                var row = dgvBookList.SelectedRows[0];
+                string isbn = row.Cells["ISBN"].Value.ToString();
+                string title = row.Cells["Title"].Value.ToString();
+                int lastQty = Convert.ToInt32(row.Cells["Qty"].Value);
 
-                DialogResult result = MessageBox.Show(
-                    $"Are you sure you want to delete '{title}' from the Cloud Database?",
-                    "Confirm Delete",
-                    MessageBoxButtons.YesNo,
-                    MessageBoxIcon.Warning);
-
-                if (result == DialogResult.Yes)
+                if (MessageBox.Show($"Delete '{title}'?", "Confirm", MessageBoxButtons.YesNo) == DialogResult.Yes)
                 {
-                    try
-                    {
-                        DBConnection.DeleteBook(isbn);
-                        RefreshBookList();
-                    }
-                    catch (Exception ex)
-                    {
-                        MessageBox.Show("Error deleting from Cloud: " + ex.Message);
-                    }
+                    DBConnection.DeleteBook(isbn);
+
+                    DBConnection.LogTransaction(
+                        isbn,
+                        title,
+                        -lastQty,
+                        "0",       
+                        "Book Deleted",
+                        CurrentSession.User.DisplayName
+                    );
+
+                    RefreshBookList();
                 }
-            }
-            else
-            {
-                MessageBox.Show("Please select a book from the table first.");
             }
         }
 

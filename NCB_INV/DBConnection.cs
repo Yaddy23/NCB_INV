@@ -1,12 +1,16 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Data;
-using MongoDB.Driver;
-using MongoDB.Bson;
-using Microsoft.Data.Sqlite;
 using System.Net.Http;
+using System.Security.Cryptography;
+using System.Text;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
+using Microsoft.Data.Sqlite;
+using MongoDB.Bson;
+using MongoDB.Driver;
 using Newtonsoft.Json.Linq;
+using System.Text.RegularExpressions;
 
 
 namespace NCB_INV
@@ -132,11 +136,10 @@ namespace NCB_INV
             }
         }
 
-        public static void LogTransaction(string isbn, string title, int change, int total, string reason)
+        public static void LogTransaction(string isbn, string title, int change, string total, string reason, string username)
         {
             try
             {
-                // This uses the 'Database' property defined above
                 var collection = _database.GetCollection<Transaction>("Transactions");
 
                 var entry = new Transaction
@@ -146,6 +149,7 @@ namespace NCB_INV
                     ChangeAmount = change,
                     NewTotal = total,
                     Reason = reason,
+                    performedBy = username,
                     Timestamp = DateTime.Now
                 };
 
@@ -490,6 +494,48 @@ namespace NCB_INV
         {
             public bool Equals(Book x, Book y) => x.ISBN == y.ISBN;
             public int GetHashCode(Book obj) => obj.ISBN.GetHashCode();
+        }
+
+        public static UserAccount Login(string username, string password)
+        {
+            var collection = _database.GetCollection<UserAccount>("Users");
+
+            // FORCE CLEAN: This ignores everything except letters and numbers
+            string superClean = "";
+            foreach (char c in password)
+            {
+                if (char.IsLetterOrDigit(c)) { superClean += c; }
+            }
+
+            string hashedpass = HashPassword(superClean);
+
+            var user = collection.Find(u => u.Username == username.Trim() && u.Password == hashedpass).FirstOrDefault();
+
+            // If it fails, this will show us the EXACT character count
+            if (user == null)
+            {
+                System.Windows.Forms.MessageBox.Show($"DEBUG:\nOriginal Length: {password.Length}\nCleaned Length: {superClean.Length}\nTarget Hash: {hashedpass}");
+            }
+
+            return user;
+        }
+        public static string HashPassword(string password)
+        {
+            using (SHA256 sha256 = SHA256.Create())
+            {
+                byte[] bytes = sha256.ComputeHash(Encoding.UTF8.GetBytes(password));
+                StringBuilder builder = new StringBuilder();
+                for (int i = 0; i < bytes.Length; i++)
+                {
+                    builder.Append(bytes[i].ToString("x2"));
+                }
+                return builder.ToString();
+            }
+        }
+
+        public static class CurrentSession
+        {
+            public static UserAccount User { get; set; }
         }
     }
 }

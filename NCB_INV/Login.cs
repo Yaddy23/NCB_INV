@@ -1,4 +1,6 @@
-﻿namespace NCB_INV
+﻿using static NCB_INV.DBConnection;
+
+namespace NCB_INV
 {
     public partial class Login : Form
     {
@@ -8,7 +10,6 @@
             this.FormBorderStyle = FormBorderStyle.FixedSingle;
             this.MaximizeBox = false;
             this.StartPosition = FormStartPosition.CenterScreen;
-            textBox1.PasswordChar = '*';
         }
 
         private void Login_Load(object sender, EventArgs e)
@@ -16,32 +17,26 @@
 
         }
 
-        private void textBox1_KeyDown(object sender, KeyEventArgs e)
+        private void btnLogin_Click(object sender, EventArgs e)
         {
-            if (e.KeyCode == Keys.Enter)
+            string user = txtUsername.Text;
+            string pass = txtPassword.Text;
+
+            var account = DBConnection.Login(user, pass);
+
+            if (account != null)
             {
-                string correctPassword = "888";
-
-                if (textBox1.Text == correctPassword)
-                {
-                    lblStatus.Text = "";
-                    this.DialogResult = DialogResult.OK;
-                    this.Close();
-                }
-                else
-                {
-                    lblStatus.Text = "❌ Incorrect password. Please try again.";
-                    textBox1.Clear();
-                    textBox1.Focus();
-                }
-
-                e.SuppressKeyPress = true;
+                CurrentSession.User = account;
+                MessageBox.Show($"Welcome, {CurrentSession.User.DisplayName}!");
+                this.Hide();
+                this.DialogResult = DialogResult.OK;
+                this.Close();
             }
-        }
-
-        private void textBox1_TextChanged(object sender, EventArgs e)
-        {
-
+            else
+            {
+                string debugHash = HashPassword(pass);
+                MessageBox.Show($"Login Failed!\n\nTyped User: {user}\nTyped Pass: {pass}\nGenerated Hash: {debugHash}");
+            }
         }
     }
 }

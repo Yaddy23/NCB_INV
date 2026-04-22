@@ -23,15 +23,15 @@ namespace NCB_INV
         [STAThread]
         static void Main()
         {
+            Application.EnableVisualStyles();
+            Application.SetCompatibleTextRenderingDefault(false);
             System.Text.Encoding.RegisterProvider(System.Text.CodePagesEncodingProvider.Instance);
-            ApplicationConfiguration.Initialize();
-            using (Login log = new Login())
+
+            Login login = new Login();
+
+            if (login.ShowDialog() == DialogResult.OK)
             {
-                if (log.ShowDialog() == DialogResult.OK)
-                {
-                    EncryptConfig();
-                    Application.Run(new ImportBook());
-                }
+                Application.Run(new ImportBook());
             }
         }
     }

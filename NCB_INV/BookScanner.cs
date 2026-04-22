@@ -7,6 +7,7 @@ using System.Text;
 using System.Drawing;
 using System.Windows.Forms;
 using ExcelDataReader;
+using System.Data.Common;
 
 namespace NCB_INV
 {
@@ -31,6 +32,7 @@ namespace NCB_INV
                 if (string.IsNullOrEmpty(isbn)) return;
 
                 currentbook = DBConnection.GetBookByISBN(isbn);
+                string currentuser = DBConnection.CurrentSession.User.DisplayName;
 
                 if (currentbook != null)
                 {
@@ -42,7 +44,7 @@ namespace NCB_INV
                     lblOldQty.Text = $"Previous: {oldQty}";
                     lblNewQty.Text = $"New Total: {currentbook.Qty}";
                     lblNewQty.ForeColor = Color.Green;
-                    DBConnection.LogTransaction(txtBarcodeScanner.Text, lblTitle.Text, oldQty, currentbook.Qty, "Initial Stock Entry");
+                    DBConnection.LogTransaction(txtBarcodeScanner.Text, lblTitle.Text, oldQty, currentbook.Qty.ToString(), "Initial Stock Entry", currentuser);
                 }
                 else
                 {
@@ -77,11 +79,15 @@ namespace NCB_INV
                 string excelName = Path.GetFileNameWithoutExtension(ofd.FileName);
                 int updatedCount = 0;
                 int failCount = 0;
+
+                // 1. StringBuilders for each column
+                StringBuilder sbIsbn = new StringBuilder("ISBN {\n");
+                StringBuilder sbTitle = new StringBuilder("Title {\n");
+                StringBuilder sbChange = new StringBuilder("ChangeAmount {\n");
+                StringBuilder sbTotal = new StringBuilder("NewTotal {\n");
+
                 StringBuilder tableRows = new StringBuilder();
-
                 List<Book> bulkList = new List<Book>();
-
-                List<Transaction> transactionLogs = new List<Transaction>();
 
                 try
                 {
@@ -104,7 +110,6 @@ namespace NCB_INV
                                 if (book != null)
                                 {
                                     int oldQty = book.Qty;
-
                                     if (!isStockIn && book.Qty <= 0)
                                     {
                                         tableRows.AppendLine($"<tr style='background-color: #fff4e5;'><td>{isbn}</td><td>{book.Title} (OUT OF STOCK)</td><td>0</td><td style='color: red;'>0</td></tr>");
@@ -114,18 +119,14 @@ namespace NCB_INV
 
                                     int change = isStockIn ? 1 : -1;
                                     book.Qty += change;
-
                                     bulkList.Add(book);
+                                    updatedCount++;
 
-                                    transactionLogs.Add(new Transaction
-                                    {
-                                        ISBN = book.ISBN,
-                                        Title = book.Title,
-                                        ChangeAmount = change,
-                                        NewTotal = book.Qty,
-                                        Reason = isStockIn ? "Bulk Stock-In" : "Bulk Release",
-                                        Timestamp = DateTime.Now
-                                    });
+                                    // 2. Add numbered entries to each StringBuilder
+                                    sbIsbn.AppendLine($"// {updatedCount}. {book.ISBN}");
+                                    sbTitle.AppendLine($"// {updatedCount}. {book.Title}");
+                                    sbChange.AppendLine($"// {updatedCount}. {change}");
+                                    sbTotal.AppendLine($"// {updatedCount}. {book.Qty}");
 
                                     tableRows.AppendLine($@"
                                 <tr>
@@ -134,31 +135,39 @@ namespace NCB_INV
                                     <td>{oldQty}</td>
                                     <td style='color: {(isStockIn ? "green" : "blue")}; font-weight: bold;'>{book.Qty}</td>
                                 </tr>");
-                                    updatedCount++;
 
-                                    if (bulkList.Count >= 20000)
+                                    if (bulkList.Count >= 5000)
                                     {
                                         DBConnection.BulkImportBooks(bulkList);
-                                        DBConnection.LogBulkTransactions(transactionLogs);
-
                                         bulkList.Clear();
-                                        transactionLogs.Clear();
                                     }
                                 }
                                 else
                                 {
-                                    tableRows.AppendLine($"<tr style='background-color: #ffe6e6;'><td>{isbn}</td><td style='color: red;'>NOT FOUND IN DATABASE</td><td>N/A</td><td>N/A</td></tr>");
+                                    tableRows.AppendLine($"<tr style='background-color: #ffe6e6;'><td>{isbn}</td><td style='color: red;'>NOT FOUND</td><td>N/A</td><td>N/A</td></tr>");
                                     failCount++;
                                 }
                             }
                         }
                     }
 
-                    // 4. ADDED: Final push for remaining records
-                    if (bulkList.Count > 0)
+                    if (bulkList.Count > 0) { DBConnection.BulkImportBooks(bulkList); }
+
+                    if (updatedCount > 0)
                     {
-                        DBConnection.BulkImportBooks(bulkList);
-                        DBConnection.LogBulkTransactions(transactionLogs);
+                        sbIsbn.Append("}");
+                        sbTitle.Append("}");
+                        sbChange.Append("}");
+                        sbTotal.Append("}");
+
+                        DBConnection.LogTransaction(
+                        sbIsbn.ToString(),    
+                        sbTitle.ToString(),    
+                        isStockIn ? updatedCount : -updatedCount,
+                        sbTotal.ToString(),                     
+                        isStockIn ? "Bulk Stock-In" : "Bulk Release", 
+                        DBConnection.CurrentSession.User.DisplayName
+                        );
                     }
 
                     string reportTitle = isStockIn ? "BULK STOCK-IN" : "BULK RELEASE";

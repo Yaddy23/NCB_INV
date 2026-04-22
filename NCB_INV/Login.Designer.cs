@@ -31,8 +31,10 @@
             System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(Login));
             pictureBox1 = new PictureBox();
             label2 = new Label();
-            textBox1 = new TextBox();
+            txtUsername = new TextBox();
             lblStatus = new Label();
+            txtPassword = new TextBox();
+            btnLogin = new Button();
             ((System.ComponentModel.ISupportInitialize)pictureBox1).BeginInit();
             SuspendLayout();
             // 
@@ -57,16 +59,14 @@
             label2.TabIndex = 2;
             label2.Text = "INVENTORY SYSTEM";
             // 
-            // textBox1
+            // txtUsername
             // 
-            textBox1.Font = new Font("Segoe UI", 24F, FontStyle.Regular, GraphicsUnit.Point, 0);
-            textBox1.Location = new Point(74, 246);
-            textBox1.Name = "textBox1";
-            textBox1.Size = new Size(231, 61);
-            textBox1.TabIndex = 3;
-            textBox1.TextAlign = HorizontalAlignment.Center;
-            textBox1.TextChanged += textBox1_TextChanged;
-            textBox1.KeyDown += textBox1_KeyDown;
+            txtUsername.Font = new Font("Segoe UI", 24F, FontStyle.Regular, GraphicsUnit.Point, 0);
+            txtUsername.Location = new Point(12, 246);
+            txtUsername.Name = "txtUsername";
+            txtUsername.Size = new Size(231, 61);
+            txtUsername.TabIndex = 3;
+            txtUsername.TextAlign = HorizontalAlignment.Center;
             // 
             // lblStatus
             // 
@@ -78,13 +78,35 @@
             lblStatus.Size = new Size(0, 23);
             lblStatus.TabIndex = 4;
             // 
+            // txtPassword
+            // 
+            txtPassword.Font = new Font("Segoe UI", 24F, FontStyle.Regular, GraphicsUnit.Point, 0);
+            txtPassword.Location = new Point(12, 313);
+            txtPassword.Name = "txtPassword";
+            txtPassword.PasswordChar = '*';
+            txtPassword.Size = new Size(231, 61);
+            txtPassword.TabIndex = 5;
+            txtPassword.TextAlign = HorizontalAlignment.Center;
+            // 
+            // btnLogin
+            // 
+            btnLogin.Location = new Point(278, 282);
+            btnLogin.Name = "btnLogin";
+            btnLogin.Size = new Size(97, 50);
+            btnLogin.TabIndex = 6;
+            btnLogin.Text = "Login";
+            btnLogin.UseVisualStyleBackColor = true;
+            btnLogin.Click += btnLogin_Click;
+            // 
             // Login
             // 
             AutoScaleDimensions = new SizeF(8F, 20F);
             AutoScaleMode = AutoScaleMode.Font;
-            ClientSize = new Size(397, 392);
+            ClientSize = new Size(397, 386);
+            Controls.Add(btnLogin);
+            Controls.Add(txtPassword);
             Controls.Add(lblStatus);
-            Controls.Add(textBox1);
+            Controls.Add(txtUsername);
             Controls.Add(label2);
             Controls.Add(pictureBox1);
             Name = "Login";
@@ -99,7 +121,9 @@
 
         private PictureBox pictureBox1;
         private Label label2;
-        private TextBox textBox1;
+        private TextBox txtUsername;
         private Label lblStatus;
+        private TextBox txtPassword;
+        private Button btnLogin;
     }
 }
