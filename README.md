@@ -1,47 +1,45 @@
-NCB Inventory System
-A robust, hybrid-database inventory management solution designed for warehouse operations. This system ensures 100% data reliability by utilizing a local-fallback architecture for intermittent internet environments.
+<h1 align="center">📚 NCB INVENTORY SYSTEM</h1>
+A High-Performance Hybrid Warehouse Management Solution
 
 🚀 Key Functions
-1. Hybrid Bulk Update System
-Intelligent Stock Management: Processes massive Excel datasets (up to 20,000+ rows) for bulk "Stock-In" or "Release" actions.
+📦 Intelligent Bulk Processing
+Mass Update Engine: Optimized to process thousands of entries via Excel (.xlsx, .xls) for both Stock-In and Stock-Release operations.
 
-Transaction Aggregation: To optimize database performance, the system batches updates and logs a single, detailed summary for bulk operations instead of flooding the database with individual entries.
+Buffered Logging: Uses a custom aggregation strategy to log bulk actions. Instead of single entries, it saves formatted lists of ISBNs, Titles, and Quantities into a single transaction document to maintain a clean audit trail.
 
-Real-time Report Generation: Automatically generates an HTML-based audit report after every bulk process, providing instant visual feedback on successes, stock-outs, and "Not Found" items.
+Automated HTML Reporting: Generates instant, color-coded diagnostic reports after every import to track success rates and identify missing items.
 
-2. Advanced Data Grid & Search
-Dynamic Search: Real-time filtering of the book database with automated list refreshing.
+🔍 Real-Time Inventory Control
+Dynamic DataGrid: Features live-refreshing views with status highlighting (e.g., Red for out-of-stock items).
 
-Color-Coded Status: Visual indicators for stock levels (e.g., Red for out-of-stock, Light Red for missing database entries).
+Instant Search: Multi-parameter search functionality to locate stock across the entire warehouse database.
 
-3. Secure Authentication
-SHA-256 Hashing: Implements industry-standard cryptographic hashing for user passwords, ensuring no plain-text credentials are stored.
+🔐 Enterprise-Grade Security
+Cryptographic Hashing: Uses SHA-256 encryption for user passwords, ensuring data privacy.
 
-Session Management: Tracks the DisplayName of the active user for every transaction log to maintain a strict audit trail.
+Role-Based Audit Logs: Every action is timestamped and tied to the DisplayName of the authenticated user.
 
 🗄️ Database Architecture
-The project utilizes a Multi-Tiered Database Strategy to balance cloud scalability with local reliability:
+This system is built for 100% Uptime using a two-tier approach:
 
-MongoDB (Primary Cloud Store): Handles the global book repository and transaction history. Uses a nested _id structure to tie user identity directly to their credentials.
+MongoDB (Cloud Tier): Acts as the primary global repository for all book data and transaction history.
 
-SQLite (Offline Fallback): Integrated as a local buffer to ensure warehouse operations can continue even if the internet connection is lost.
+SQLite (Local Fallback): Ensures the warehouse remains operational during internet outages by allowing offline data entry and retrieval.
 
-Consolidated Logging: Transaction logs are structured to hold vertical lists of ISBNs, Titles, and Quantities, allowing for rich historical data without hitting MongoDB's document size limits.
+Data Consistency: Implements custom mapping for nested MongoDB _id objects to ensure seamless C# object-to-document translation.
 
 🛠️ Technical Stack
-Language: C# / .NET
+Language: C# / .NET (WinForms)
 
-Framework: WinForms
+Data Parsing: ExcelDataReader (configured with CodePagesEncodingProvider for legacy support)
 
-Data Processing: ExcelDataReader (supporting Encoding 1252 for legacy Excel formats)
+Database Drivers: MongoDB.Driver, System.Data.SQLite
 
-Database: MongoDB (.NET Driver), SQLite
+UI/UX: Custom HTML/CSS Template Engine for reporting
 
-Reporting: Dynamic HTML/CSS Generator
+📦 Deployment
+The application is published as a Single-File Self-Contained Executable.
 
-📦 Deployment & Installation
-The application is published as a Self-Contained Single-File Executable.
+No Runtime Required: The .NET environment is bundled inside the .exe.
 
-No dependencies required: All .NET Runtimes are bundled within the .exe.
-
-Portable: Can be run directly on any Windows x64 machine without pre-installing system libraries.
+Zero Install: Fully portable; can be run directly from a USB drive or network share on any Windows x64 system.
