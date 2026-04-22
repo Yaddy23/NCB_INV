@@ -1,7 +1,7 @@
 <h1 align="center">📚 NCB INVENTORY SYSTEM</h1>
-A High-Performance Hybrid Warehouse Management Solution
+<h2 align="center">A High-Performance Hybrid Warehouse Management Solution</h2>
 
-🚀 Key Functions
+<h1 align="center">🚀 Key Functions</h1>
 📦 Intelligent Bulk Processing
 Mass Update Engine: Optimized to process thousands of entries via Excel (.xlsx, .xls) for both Stock-In and Stock-Release operations.
 
