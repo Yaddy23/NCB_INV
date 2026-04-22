@@ -239,14 +239,5 @@ namespace NCB_INV
 
         private void btnClose_Click(object sender, EventArgs e) => this.Close();
 
-        private void BookScanner_Load(object sender, EventArgs e)
-        {
-
-        }
-
-        private void txtBarcodeScanner_TextChanged(object sender, EventArgs e)
-        {
-
-        }
     }
 }
