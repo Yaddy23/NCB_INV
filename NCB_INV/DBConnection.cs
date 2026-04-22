@@ -498,27 +498,93 @@ namespace NCB_INV
 
         public static UserAccount Login(string username, string password)
         {
-            var collection = _database.GetCollection<UserAccount>("Users");
-
-            // FORCE CLEAN: This ignores everything except letters and numbers
+            // 1. CLEAN AND HASH FIRST
             string superClean = "";
-            foreach (char c in password)
-            {
-                if (char.IsLetterOrDigit(c)) { superClean += c; }
-            }
-
+            foreach (char c in password) { if (char.IsLetterOrDigit(c)) superClean += c; }
             string hashedpass = HashPassword(superClean);
+            string trimmedUser = username.Trim();
 
-            var user = collection.Find(u => u.Username == username.Trim() && u.Password == hashedpass).FirstOrDefault();
-
-            // If it fails, this will show us the EXACT character count
-            if (user == null)
+            if (_database != null)
             {
-                System.Windows.Forms.MessageBox.Show($"DEBUG:\nOriginal Length: {password.Length}\nCleaned Length: {superClean.Length}\nTarget Hash: {hashedpass}");
+                try
+                {
+                    var collection = _database.GetCollection<UserAccount>("Users");
+                    var user = collection.Find(u => u.Username == trimmedUser && u.Password == hashedpass).FirstOrDefault();
+
+                    if (user != null)
+                    {
+                        UpdateLocalUserCache(user.Username, user.DisplayName, hashedpass);
+                        return user;
+                    }
+                }
+                catch { /* Fall through to offline if cloud fails */ }
             }
 
-            return user;
+            return AuthenticateOffline(trimmedUser, hashedpass);
         }
+
+        private static UserAccount AuthenticateOffline(string username, string hashedPass)
+        {
+            using (var conn = new SqliteConnection(sqliteConn))
+            {
+                conn.Open();
+                string query = "SELECT Username, DisplayName FROM UserCache WHERE Username = @user AND PasswordHash = @hash";
+                using (var cmd = new SqliteCommand(query, conn))
+                {
+                    cmd.Parameters.AddWithValue("@user", username);
+                    cmd.Parameters.AddWithValue("@hash", hashedPass);
+
+                    using (var reader = cmd.ExecuteReader())
+                    {
+                        if (reader.Read())
+                        {
+                            return new UserAccount
+                            {
+                                Username = reader["Username"].ToString(),
+                                DisplayName = reader["DisplayName"].ToString(),
+                                Password = hashedPass 
+                            };
+                        }
+                    }
+                }
+            }
+            return null;
+        }
+
+        private static void UpdateLocalUserCache(string user, string display, string hash)
+        {
+            using (var conn = new SqliteConnection(sqliteConn))
+            {
+                conn.Open();
+
+                string createTableQuery = @"
+                CREATE TABLE IF NOT EXISTS UserCache (
+                Username TEXT PRIMARY KEY,
+                DisplayName TEXT,
+                PasswordHash TEXT,
+                LastSync DATETIME
+                );";
+
+                using (var createCmd = new SqliteCommand(createTableQuery, conn))
+                {
+                    createCmd.ExecuteNonQuery();
+                }
+
+                string upsertQuery = @"
+                INSERT OR REPLACE INTO UserCache (Username, DisplayName, PasswordHash, LastSync) 
+                VALUES (@user, @display, @hash, @now)";
+
+                using (var cmd = new SqliteCommand(upsertQuery, conn))
+                {
+                    cmd.Parameters.AddWithValue("@user", user);
+                    cmd.Parameters.AddWithValue("@display", display);
+                    cmd.Parameters.AddWithValue("@hash", hash);
+                    cmd.Parameters.AddWithValue("@now", DateTime.Now);
+                    cmd.ExecuteNonQuery();
+                }
+            }
+        }
+
         public static string HashPassword(string password)
         {
             using (SHA256 sha256 = SHA256.Create())

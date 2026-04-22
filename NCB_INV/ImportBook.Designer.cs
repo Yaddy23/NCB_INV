@@ -28,6 +28,8 @@
         /// </summary>
         private void InitializeComponent()
         {
+            DataGridViewCellStyle dataGridViewCellStyle1 = new DataGridViewCellStyle();
+            DataGridViewCellStyle dataGridViewCellStyle2 = new DataGridViewCellStyle();
             dgvBookList = new DataGridView();
             btnReload = new Button();
             btnImport = new Button();
@@ -46,11 +48,25 @@
             // 
             dgvBookList.AllowUserToAddRows = false;
             dgvBookList.AllowUserToDeleteRows = false;
+            dataGridViewCellStyle1.BackColor = Color.FromArgb(249, 249, 249);
+            dgvBookList.AlternatingRowsDefaultCellStyle = dataGridViewCellStyle1;
+            dgvBookList.BackgroundColor = Color.White;
+            dgvBookList.BorderStyle = BorderStyle.None;
+            dgvBookList.CellBorderStyle = DataGridViewCellBorderStyle.SingleHorizontal;
+            dataGridViewCellStyle2.Alignment = DataGridViewContentAlignment.MiddleLeft;
+            dataGridViewCellStyle2.BackColor = Color.Navy;
+            dataGridViewCellStyle2.Font = new Font("Segoe UI", 10.2F, FontStyle.Bold, GraphicsUnit.Point, 0);
+            dataGridViewCellStyle2.ForeColor = Color.White;
+            dataGridViewCellStyle2.SelectionBackColor = SystemColors.Highlight;
+            dataGridViewCellStyle2.SelectionForeColor = SystemColors.HighlightText;
+            dataGridViewCellStyle2.WrapMode = DataGridViewTriState.True;
+            dgvBookList.ColumnHeadersDefaultCellStyle = dataGridViewCellStyle2;
             dgvBookList.ColumnHeadersHeightSizeMode = DataGridViewColumnHeadersHeightSizeMode.AutoSize;
             dgvBookList.Location = new Point(12, 112);
             dgvBookList.Name = "dgvBookList";
             dgvBookList.ReadOnly = true;
             dgvBookList.RowHeadersWidth = 51;
+            dgvBookList.SelectionMode = DataGridViewSelectionMode.FullRowSelect;
             dgvBookList.Size = new Size(974, 273);
             dgvBookList.TabIndex = 0;
             dgvBookList.CellFormatting += dgvBookList_CellFormatting;

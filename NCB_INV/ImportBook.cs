@@ -79,6 +79,15 @@ namespace NCB_INV
 
         private void ImportBook_Load(object sender, EventArgs e)
         {
+            Color primaryNavy = ColorTranslator.FromHtml("#2C3E50");
+            Color accentBlue = ColorTranslator.FromHtml("#3498DB");
+            Color bgLight = ColorTranslator.FromHtml("#F4F7F6");
+
+            this.BackColor = bgLight;
+            dgvBookList.EnableHeadersVisualStyles = false;
+            dgvBookList.ColumnHeadersDefaultCellStyle.BackColor = primaryNavy;
+            dgvBookList.ColumnHeadersDefaultCellStyle.ForeColor = Color.White;
+
             RefreshBookList();
         }
 

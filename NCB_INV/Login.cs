@@ -27,15 +27,20 @@ namespace NCB_INV
             if (account != null)
             {
                 CurrentSession.User = account;
-                MessageBox.Show($"Welcome, {CurrentSession.User.DisplayName}!");
+
+                string mode = DBConnection. IsCloudAvailable() ? "Online" : "OFFLINE MODE";
+
+                MessageBox.Show($"Welcome, {account.DisplayName}!\nLogged in via: {mode}",
+                                "Login Successful", MessageBoxButtons.OK, MessageBoxIcon.Information);
+
                 this.Hide();
                 this.DialogResult = DialogResult.OK;
                 this.Close();
             }
             else
             {
-                string debugHash = HashPassword(pass);
-                MessageBox.Show($"Login Failed!\n\nTyped User: {user}\nTyped Pass: {pass}\nGenerated Hash: {debugHash}");
+                MessageBox.Show("Login Failed! Please check your credentials or network connection.",
+                                "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
     }
