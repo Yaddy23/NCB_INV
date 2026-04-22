@@ -80,12 +80,6 @@ namespace NCB_INV
                 int updatedCount = 0;
                 int failCount = 0;
 
-                // 1. StringBuilders for each column
-                StringBuilder sbIsbn = new StringBuilder("ISBN {\n");
-                StringBuilder sbTitle = new StringBuilder("Title {\n");
-                StringBuilder sbChange = new StringBuilder("ChangeAmount {\n");
-                StringBuilder sbTotal = new StringBuilder("NewTotal {\n");
-
                 StringBuilder tableRows = new StringBuilder();
                 List<Book> bulkList = new List<Book>();
 
@@ -94,41 +88,34 @@ namespace NCB_INV
                     Cursor.Current = Cursors.WaitCursor;
 
                     using (var stream = File.Open(ofd.FileName, FileMode.Open, FileAccess.Read))
+                    using (var reader = ExcelReaderFactory.CreateReader(stream))
                     {
-                        using (var reader = ExcelReaderFactory.CreateReader(stream))
+                        var result = reader.AsDataSet();
+                        var table = result.Tables[0];
+
+                        for (int i = 1; i < table.Rows.Count; i++)
                         {
-                            var result = reader.AsDataSet();
-                            var table = result.Tables[0];
+                            string isbn = table.Rows[i][0]?.ToString().Trim() ?? "";
+                            if (string.IsNullOrEmpty(isbn)) continue;
 
-                            for (int i = 1; i < table.Rows.Count; i++)
+                            Book book = DBConnection.GetLocalBookByISBN(isbn);
+
+                            if (book != null)
                             {
-                                string isbn = table.Rows[i][0]?.ToString().Trim() ?? "";
-                                if (string.IsNullOrEmpty(isbn)) continue;
-
-                                Book book = DBConnection.GetBookByISBN(isbn);
-
-                                if (book != null)
+                                int oldQty = book.Qty;
+                                if (!isStockIn && book.Qty <= 0)
                                 {
-                                    int oldQty = book.Qty;
-                                    if (!isStockIn && book.Qty <= 0)
-                                    {
-                                        tableRows.AppendLine($"<tr style='background-color: #fff4e5;'><td>{isbn}</td><td>{book.Title} (OUT OF STOCK)</td><td>0</td><td style='color: red;'>0</td></tr>");
-                                        failCount++;
-                                        continue;
-                                    }
+                                    tableRows.AppendLine($"<tr style='background-color: #fff4e5;'><td>{isbn}</td><td>{book.Title} (OUT OF STOCK)</td><td>0</td><td style='color: red;'>0</td></tr>");
+                                    failCount++;
+                                    continue;
+                                }
 
-                                    int change = isStockIn ? 1 : -1;
-                                    book.Qty += change;
-                                    bulkList.Add(book);
-                                    updatedCount++;
+                                int change = isStockIn ? 1 : -1;
+                                book.Qty += change;
+                                bulkList.Add(book);
+                                updatedCount++;
 
-                                    // 2. Add numbered entries to each StringBuilder
-                                    sbIsbn.AppendLine($"// {updatedCount}. {book.ISBN}");
-                                    sbTitle.AppendLine($"// {updatedCount}. {book.Title}");
-                                    sbChange.AppendLine($"// {updatedCount}. {change}");
-                                    sbTotal.AppendLine($"// {updatedCount}. {book.Qty}");
-
-                                    tableRows.AppendLine($@"
+                                tableRows.AppendLine($@"
                                 <tr>
                                     <td>{book.ISBN}</td>
                                     <td>{book.Title}</td>
@@ -136,37 +123,33 @@ namespace NCB_INV
                                     <td style='color: {(isStockIn ? "green" : "blue")}; font-weight: bold;'>{book.Qty}</td>
                                 </tr>");
 
-                                    if (bulkList.Count >= 5000)
-                                    {
-                                        DBConnection.BulkImportBooks(bulkList);
-                                        bulkList.Clear();
-                                    }
-                                }
-                                else
+                                if (bulkList.Count >= 20000)
                                 {
-                                    tableRows.AppendLine($"<tr style='background-color: #ffe6e6;'><td>{isbn}</td><td style='color: red;'>NOT FOUND</td><td>N/A</td><td>N/A</td></tr>");
-                                    failCount++;
+                                    DBConnection.SyncBookQuantitiesLocal(bulkList);
+                                    bulkList.Clear();
                                 }
+                            }
+                            else
+                            {
+                                tableRows.AppendLine($"<tr style='background-color: #ffe6e6;'><td>{isbn}</td><td style='color: red;'>NOT FOUND</td><td>N/A</td><td>N/A</td></tr>");
+                                failCount++;
                             }
                         }
                     }
 
-                    if (bulkList.Count > 0) { DBConnection.BulkImportBooks(bulkList); }
+                    if (bulkList.Count > 0) { DBConnection.SyncBookQuantitiesLocal(bulkList); }
 
                     if (updatedCount > 0)
                     {
-                        sbIsbn.Append("}");
-                        sbTitle.Append("}");
-                        sbChange.Append("}");
-                        sbTotal.Append("}");
+                        string displayName = DBConnection.CurrentSession.User?.DisplayName ?? "Warehouse User";
 
                         DBConnection.LogTransaction(
-                        sbIsbn.ToString(),    
-                        sbTitle.ToString(),    
-                        isStockIn ? updatedCount : -updatedCount,
-                        sbTotal.ToString(),                     
-                        isStockIn ? "Bulk Stock-In" : "Bulk Release", 
-                        DBConnection.CurrentSession.User.DisplayName
+                            "BULK_IMPORT",
+                            $"Excel: {excelName}",
+                            isStockIn ? updatedCount : -updatedCount,
+                            "Report Generated",
+                            isStockIn ? "Bulk Stock-In" : "Bulk Release",
+                            displayName
                         );
                     }
 
