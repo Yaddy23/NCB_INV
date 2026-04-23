@@ -67,7 +67,7 @@ namespace NCB_INV
                 return;
             }
 
-            string currentuser = DBConnection.CurrentSession.User.Username;
+            string currentuser = DBConnection.CurrentSession.User?.Username ?? "Unknown User";
             BookData = new Book(
                 txtISBN.Text,
                 txtTitle.Text,

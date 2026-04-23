@@ -24,6 +24,6 @@ namespace NCB_INV
         public string Role { get; set; }
 
         [BsonElement("DisplayName")]
-        public string DisplayName { get; set; }
+        public required string DisplayName { get; set; }
     }
 }

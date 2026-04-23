@@ -103,8 +103,8 @@ namespace NCB_INV
 
         private void btnAddBook_Click(object sender, EventArgs e)
         {
-            using (var editor = new BookEditorForm(null))
-            {
+            using var editor = new BookEditorForm(null);
+            
                 if (editor.ShowDialog() == DialogResult.OK)
                 {
                     if (DBConnection.DoesISBNExist(editor.BookData.ISBN))
@@ -127,7 +127,6 @@ namespace NCB_INV
                         RefreshBookList();
                     }
                 }
-            }
         }
 
         private void btnModifyBook_Click(object sender, EventArgs e)
@@ -137,7 +136,7 @@ namespace NCB_INV
                 var row = dgvBookList.SelectedRows[0];
                 int oldQty = Convert.ToInt32(row.Cells["Qty"].Value);
 
-                Book selected = new Book(
+                Book selected = new(
                     row.Cells["ISBN"].Value.ToString(),
                     row.Cells["Title"].Value.ToString(),
                     row.Cells["Edition"].Value.ToString(),
@@ -149,8 +148,8 @@ namespace NCB_INV
                     row.Cells["Publisher"].Value.ToString()
                 );
 
-                using (var editor = new BookEditorForm(selected))
-                {
+                using var editor = new BookEditorForm(selected);
+                
                     if (editor.ShowDialog() == DialogResult.OK)
                     {
                         DBConnection.SaveBook(editor.BookData);
@@ -167,25 +166,24 @@ namespace NCB_INV
 
                         RefreshBookList();
                     }
-                }
             }
         }
         private void btnImport_Click(object sender, EventArgs e)
         {
-            OpenFileDialog ofd = new OpenFileDialog { Filter = "Excel Files|*.xlsx;*.xls" };
+            OpenFileDialog ofd = new() { Filter = "Excel Files|*.xlsx;*.xls" };
 
             if (ofd.ShowDialog() == DialogResult.OK)
             {
                 try
                 {
                     Cursor.Current = Cursors.WaitCursor;
-                    List<Book> batchList = new List<Book>();
+                    var batchList = new List<Book>();
                     int totalImportedCount = 0;
 
-                    using (var stream = File.Open(ofd.FileName, FileMode.Open, FileAccess.Read))
-                    {
-                        using (var reader = ExcelReaderFactory.CreateReader(stream))
-                        {
+                    using var stream = File.Open(ofd.FileName, FileMode.Open, FileAccess.Read);
+
+                        using var reader = ExcelReaderFactory.CreateReader(stream);
+                        
                             var result = reader.AsDataSet();
                             var table = result.Tables[0];
 
@@ -195,7 +193,7 @@ namespace NCB_INV
                                 if (row[0] == DBNull.Value || string.IsNullOrWhiteSpace(row[0].ToString()))
                                     continue;
 
-                                Book excelBook = new Book(
+                                Book excelBook = new(
                                     row[0].ToString().Trim(),
                                     row[1]?.ToString() ?? "",
                                     row[2]?.ToString() ?? "",
@@ -216,8 +214,6 @@ namespace NCB_INV
                                     batchList.Clear();
                                 }
                             }
-                        }
-                    }
 
                     if (batchList.Count > 0)
                     {
@@ -276,7 +272,7 @@ namespace NCB_INV
 
         private void btnScanBook_Click(object sender, EventArgs e)
         {
-            BookScanner bookScanner = new BookScanner();
+            BookScanner bookScanner = new();
             bookScanner.Show();
         }
 

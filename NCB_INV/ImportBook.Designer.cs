@@ -66,7 +66,7 @@
             dgvBookList.Name = "dgvBookList";
             dgvBookList.ReadOnly = true;
             dgvBookList.RowHeadersWidth = 51;
-            dgvBookList.SelectionMode = DataGridViewSelectionMode.FullRowSelect;
+            dgvBookList.SelectionMode = DataGridViewSelectionMode.CellSelect;
             dgvBookList.Size = new Size(974, 273);
             dgvBookList.TabIndex = 0;
             dgvBookList.CellFormatting += dgvBookList_CellFormatting;
