@@ -149,29 +149,29 @@ namespace NCB_INV
         private void btnAddBook_Click(object sender, EventArgs e)
         {
             using var editor = new BookEditorForm(null);
-            
-                if (editor.ShowDialog() == DialogResult.OK)
-                {
-                    if (DBConnection.DoesISBNExist(editor.BookData.ISBN))
-                    {
-                        MessageBox.Show("Error: A book with this ISBN already exists in the cloud!",
-                                        "Duplicate Found", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                    }
-                    else
-                    {
-                        DBConnection.SaveBook(editor.BookData);
 
-                        DBConnection.LogTransaction(
-                        editor.BookData.ISBN,
-                        editor.BookData.Title,
-                        editor.BookData.Qty,    
-                        editor.BookData.Qty.ToString(),      
-                        "New Book Added",          
-                        CurrentSession.User.DisplayName 
-                );
-                        RefreshBookList();
-                    }
+            if (editor.ShowDialog() == DialogResult.OK)
+            {
+                if (DBConnection.DoesISBNExist(editor.BookData.ISBN))
+                {
+                    MessageBox.Show("Error: A book with this ISBN already exists in the cloud!",
+                                    "Duplicate Found", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 }
+                else
+                {
+                    DBConnection.SaveBook(editor.BookData);
+
+                    DBConnection.LogTransaction(
+                    editor.BookData.ISBN,
+                    editor.BookData.Title,
+                    editor.BookData.Qty,
+                    editor.BookData.Qty.ToString(),
+                    "New Book Added",
+                    CurrentSession.User.DisplayName
+            );
+                    RefreshBookList();
+                }
+            }
         }
 
         private void btnModifyBook_Click(object sender, EventArgs e)
@@ -195,23 +195,23 @@ namespace NCB_INV
                 );
 
                 using var editor = new BookEditorForm(selected);
-                
-                    if (editor.ShowDialog() == DialogResult.OK)
-                    {
-                        DBConnection.SaveBook(editor.BookData);
 
-                        int change = editor.BookData.Qty - oldQty;
-                        DBConnection.LogTransaction(
-                            editor.BookData.ISBN,
-                            editor.BookData.Title,
-                            change,                
-                            editor.BookData.Qty.ToString(),     
-                            "Stock Modified",
-                            CurrentSession.User.DisplayName
-                        );
+                if (editor.ShowDialog() == DialogResult.OK)
+                {
+                    DBConnection.SaveBook(editor.BookData);
 
-                        RefreshBookList();
-                    }
+                    int change = editor.BookData.Qty - oldQty;
+                    DBConnection.LogTransaction(
+                        editor.BookData.ISBN,
+                        editor.BookData.Title,
+                        change,
+                        editor.BookData.Qty.ToString(),
+                        "Stock Modified",
+                        CurrentSession.User.DisplayName
+                    );
+
+                    RefreshBookList();
+                }
             }
         }
         private void btnImport_Click(object sender, EventArgs e)
@@ -223,65 +223,82 @@ namespace NCB_INV
                 try
                 {
                     Cursor.Current = Cursors.WaitCursor;
+
                     var batchList = new List<Book>();
+                    var transactionBatch = new List<Transaction>();
                     int totalImportedCount = 0;
 
                     using var stream = File.Open(ofd.FileName, FileMode.Open, FileAccess.Read);
+                    using var reader = ExcelReaderFactory.CreateReader(stream);
 
-                        using var reader = ExcelReaderFactory.CreateReader(stream);
-                        
-                            var result = reader.AsDataSet();
-                            var table = result.Tables[0];
+                    var result = reader.AsDataSet();
+                    var table = result.Tables[0];
 
-                            for (int i = 1; i < table.Rows.Count; i++)
-                            {
-                                var row = table.Rows[i];
-                                if (row[0] == DBNull.Value || string.IsNullOrWhiteSpace(row[0].ToString()))
-                                    continue;
+                    for (int i = 1; i < table.Rows.Count; i++)
+                    {
+                        var row = table.Rows[i];
+                        if (row[0] == DBNull.Value || string.IsNullOrWhiteSpace(row[0].ToString()))
+                            continue;
 
-                                Book excelBook = new(
-                                    row[0].ToString().Trim(),
-                                    row[1]?.ToString() ?? "",
-                                    row[2]?.ToString() ?? "",
-                                    row[3]?.ToString() ?? "",
-                                    row[4]?.ToString() ?? "",
-                                    row[5]?.ToString() ?? "",
-                                    row[6] == DBNull.Value ? 0 : Convert.ToInt32(row[6]),
-                                    row[7] == DBNull.Value ? 0m : Convert.ToDecimal(row[7]),
-                                    row[8]?.ToString() ?? "",
-                                    DateTime.Now
-                                );
+                        Book excelBook = new(
+                            row[0].ToString().Trim(),
+                            row[1]?.ToString() ?? "",
+                            row[2]?.ToString() ?? "",
+                            row[3]?.ToString() ?? "",
+                            row[4]?.ToString() ?? "",
+                            row[5]?.ToString() ?? "",
+                            row[6] == DBNull.Value ? 0 : Convert.ToInt32(row[6]),
+                            row[7] == DBNull.Value ? 0m : Convert.ToDecimal(row[7]),
+                            row[8]?.ToString() ?? "",
+                            DateTime.Now
+                        );
 
-                                batchList.Add(excelBook);
-                                totalImportedCount++;
+                        batchList.Add(excelBook);
 
-                                if (batchList.Count >= 5000)
-                                {
-                                    DBConnection.BulkImportBooks(batchList);
-                                    batchList.Clear();
-                                }
-                            }
+                        transactionBatch.Add(new Transaction
+                        {
+                            ISBN = excelBook.ISBN,
+                            Title = excelBook.Title,
+                            ChangeAmount = excelBook.Qty,
+                            NewTotal = excelBook.Qty.ToString(),
+                            Reason = "Excel Bulk Import",
+                            performedBy = CurrentSession.User.DisplayName,
+                            Timestamp = DateTime.Now
+                        });
+
+                        totalImportedCount++;
+
+                        if (batchList.Count >= 5000)
+                        {
+                            DBConnection.BulkImportBooks(batchList);
+                            DBConnection.LogBulkTransactions(transactionBatch);
+
+                            batchList.Clear();
+                            transactionBatch.Clear();
+                        }
+                    }
 
                     if (batchList.Count > 0)
                     {
                         DBConnection.BulkImportBooks(batchList);
+                        DBConnection.LogBulkTransactions(transactionBatch);
                     }
 
                     DBConnection.LogTransaction(
-                        "BULK_IMPORT",
-                        $"File: {Path.GetFileName(ofd.FileName)} ({totalImportedCount} books)",
+                        "BULK_IMPORT_SUMMARY",
+                        $"File: {Path.GetFileName(ofd.FileName)} ({totalImportedCount} items)",
                         totalImportedCount,
-                        "0",             
-                        "Bulk Import",
+                        "N/A",
+                        "Bulk Import Execution",
                         CurrentSession.User.DisplayName
                     );
 
-                    MessageBox.Show($"Cloud Bulk Import Successful! Total: {totalImportedCount} books.", "Success", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    MessageBox.Show($"Import Successful! {totalImportedCount} books and logs processed.", "Success", MessageBoxButtons.OK, MessageBoxIcon.Information);
                     RefreshBookList();
                 }
                 catch (Exception ex)
                 {
-                    MessageBox.Show("Error importing to Cloud: " + ex.Message, "Import Failed", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    MessageBox.Show("Error during import: " + ex.Message, "Import Failed", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 }
                 finally
                 {
@@ -307,7 +324,7 @@ namespace NCB_INV
                         isbn,
                         title,
                         -lastQty,
-                        "0",       
+                        "0",
                         "Book Deleted",
                         CurrentSession.User.DisplayName
                     );

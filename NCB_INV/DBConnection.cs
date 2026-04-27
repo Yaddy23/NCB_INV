@@ -204,26 +204,50 @@ namespace NCB_INV
 
         public static void LogBulkTransactions(List<Transaction> transactions)
         {
+            if (transactions == null || transactions.Count == 0) return;
+
             try
             {
-                if (transactions == null || transactions.Count == 0) return;
-
                 if (_database != null)
                 {
                     var collection = _database.GetCollection<Transaction>("Transactions");
                     collection.InsertMany(transactions);
                     return;
                 }
-                foreach (var t in transactions)
+
+                using (var conn = new SqliteConnection(sqliteConn))
                 {
-                    LogTransactionLocally(
-                        t.ISBN ?? string.Empty,
-                        t.Title ?? string.Empty,
-                        t.ChangeAmount,
-                        t.NewTotal ?? string.Empty,
-                        t.Reason ?? string.Empty,
-                        t.performedBy ?? string.Empty
-                    );
+                    conn.Open();
+                    using (var sqliteTrans = conn.BeginTransaction())
+                    {
+                        var cmd = conn.CreateCommand();
+                        cmd.CommandText = @"INSERT INTO OfflineTransactions 
+                                   (ISBN, Title, ChangeAmount, NewTotal, Reason, PerformedBy, Date, SyncRequired) 
+                                   VALUES (@isbn, @title, @change, @total, @reason, @user, @date, 1)";
+
+                        cmd.Parameters.Add("@isbn", SqliteType.Text);
+                        cmd.Parameters.Add("@title", SqliteType.Text);
+                        cmd.Parameters.Add("@change", SqliteType.Integer);
+                        cmd.Parameters.Add("@total", SqliteType.Text);
+                        cmd.Parameters.Add("@reason", SqliteType.Text);
+                        cmd.Parameters.Add("@user", SqliteType.Text);
+                        cmd.Parameters.Add("@date", SqliteType.Text);
+
+                        foreach (var t in transactions)
+                        {
+                            cmd.Parameters["@isbn"].Value = t.ISBN ?? "";
+                            cmd.Parameters["@title"].Value = t.Title ?? "";
+                            cmd.Parameters["@change"].Value = t.ChangeAmount;
+                            cmd.Parameters["@total"].Value = t.NewTotal ?? "";
+                            cmd.Parameters["@reason"].Value = t.Reason ?? "";
+                            cmd.Parameters["@user"].Value = t.performedBy ?? "";
+                            cmd.Parameters["@date"].Value = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
+
+                            cmd.ExecuteNonQuery();
+                        }
+
+                        sqliteTrans.Commit();
+                    }
                 }
             }
             catch (Exception ex)
