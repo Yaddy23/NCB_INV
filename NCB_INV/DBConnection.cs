@@ -87,7 +87,8 @@ namespace NCB_INV
                         "Unknown",
                         1,
                         0.00m,
-                        publisher
+                        publisher,
+                        DateTime.UtcNow
                     );
                 }
             }
@@ -96,7 +97,7 @@ namespace NCB_INV
                 System.Diagnostics.Debug.WriteLine("Scraper Error: " + ex.Message);
             }
             return null;
-        } //google api to find book details
+        }
 
         private static async Task<Book?> GetFromOpenLibrary(string isbn)
         {
@@ -130,7 +131,8 @@ namespace NCB_INV
                         0.00m,
                         info?["publishers"] is JArray publishersArray && publishersArray.Count > 0
                             ? publishersArray[0]?["name"]?.ToString() ?? "Unknown"
-                            : "Unknown"
+                            : "Unknown",
+                        DateTime.UtcNow
                     );
                 }
             }
@@ -139,7 +141,9 @@ namespace NCB_INV
                 System.Diagnostics.Debug.WriteLine("OpenLibrary Error: " + ex.Message);
             }
             return null;
-        } //openlibrary api for book details
+        }
+
+        // Fetches missing ISBN metadata from external providers.
 
         public static void LogTransaction(string isbn, string title, int change, string total, string reason, string username)
         {
@@ -169,7 +173,7 @@ namespace NCB_INV
             {
                 LogTransactionLocally(isbn, title, change, total, reason, username);
             }
-        } //online logs
+        } 
 
         private static void LogTransactionLocally(string isbn, string title, int change, string total, string reason, string username)
         {
@@ -226,7 +230,7 @@ namespace NCB_INV
             {
                 System.Diagnostics.Debug.WriteLine("Bulk Log Error: " + ex.Message);
             }
-        }// bulk log for transactions// bulk log for transactions
+        }
 
         public static List<Transaction> GetLocalTransactions()
         {
@@ -256,56 +260,33 @@ namespace NCB_INV
             return transactions;
         }
 
+        // Tracks stock-in/release events, falling back to SQLite if the cloud is down.
+
         public static async Task SyncOfflineData()
         {
-            if (_database == null) return; // Internet is still out
+            if (_database == null || !IsCloudAvailable()) return;
 
             try
             {
-                var allPending = GetLocalBooks();
-                var pendingBooks = allPending.Where(b => b.Qty != 0).ToList();
+                var localBooks = GetLocalBooks();
+                var bookCollection = _bookCollection ?? _database.GetCollection<Book>("Books");
 
-                if (pendingBooks.Count > 0)
+                foreach (var localBook in localBooks)
                 {
-                    var bookOps = new List<WriteModel<Book>>();
-                    foreach (var book in pendingBooks)
+                    var cloudBook = await bookCollection.Find(b => b.ISBN == localBook.ISBN).FirstOrDefaultAsync();
+
+                    if (cloudBook == null || localBook.LastModified > cloudBook.LastModified)
                     {
-                        bookOps.Add(new UpdateOneModel<Book>(
-                            Builders<Book>.Filter.Eq(b => b.ISBN, book.ISBN),
-                            Builders<Book>.Update.Inc(b => b.Qty, book.Qty)
-                        )
-                        { IsUpsert = true });
+                        await bookCollection.ReplaceOneAsync(
+                            b => b.ISBN == localBook.ISBN,
+                            localBook,
+                            new ReplaceOptions { IsUpsert = true }
+                        );
                     }
-
-                    var bookCollection = _bookCollection ?? _database.GetCollection<Book>("Books");
-                    if (bookCollection != null)
+                    else if (cloudBook.LastModified > localBook.LastModified)
                     {
-                        await bookCollection.BulkWriteAsync(bookOps);
+                        SaveToSQLite(cloudBook, isSyncing: true);
                     }
-                    else
-                    {
-                        System.Diagnostics.Debug.WriteLine("SyncOfflineData: no book collection available; skipping cloud bulk write.");
-                    }
-
-                    using var conn = new SqliteConnection(sqliteConn);
-
-                    conn.Open();
-                    using var trans = conn.BeginTransaction();
-
-                    var cmd = conn.CreateCommand();
-
-                    var paramNames = pendingBooks.Select((p, i) =>
-                    {
-                        var name = $"@isbn{i}";
-                        cmd.Parameters.AddWithValue(name, p.ISBN);
-                        return name;
-                    }).ToArray();
-
-                    cmd.CommandText = $"UPDATE OfflineBooks SET Qty = 0 WHERE ISBN IN ({string.Join(",", paramNames)})";
-                    cmd.Transaction = trans;
-                    cmd.ExecuteNonQuery();
-
-                    trans.Commit();
                 }
 
                 List<Transaction> pendingLogs = GetLocalTransactions();
@@ -313,13 +294,15 @@ namespace NCB_INV
                 {
                     var transCollection = _database.GetCollection<Transaction>("Transactions");
                     await transCollection.InsertManyAsync(pendingLogs);
+
+                    ClearLocalTransactions();
                 }
             }
             catch (Exception ex)
             {
-                MessageBox.Show("Sync failed: " + ex.Message);
+                System.Diagnostics.Debug.WriteLine("Sync Error: " + ex.Message);
             }
-        }//sync offline changes to cloud db
+        }
 
         private static void InitSQLite()
         {
@@ -337,7 +320,8 @@ namespace NCB_INV
                     Qty INTEGER,
                     Price DECIMAL,
                     Publisher TEXT,
-                    SyncRequired INTEGER DEFAULT 1
+                    SyncRequired INTEGER DEFAULT 1,
+                    LastModified DATETIME DEFAULT CURRENT_TIMESTAMP
                 );";
             command.ExecuteNonQuery();
         }
@@ -356,7 +340,9 @@ namespace NCB_INV
             {
                 return false;
             }
-        }//check if cloud db is available
+        }
+
+        // Manages the connection state and pushes local cached data to MongoDB.
 
         public static DataTable GetInventory()
         {
@@ -379,7 +365,7 @@ namespace NCB_INV
                 .ToList();
 
             return ToDataTable(combined);
-        }//get inventory from cloud and local db, combine and return as datatable
+        }
 
         public static DataTable SearchBooks(string searchTerm)
         {
@@ -397,7 +383,7 @@ namespace NCB_INV
 
             var combined = localList.Union(cloudList, new BookIsbnComparer()).ToList();
             return ToDataTable(combined);
-        }//search books in cloud and local db, combine results and return as datatable
+        }
 
         private static List<Book> GetLocalBooks(string filter = "")
         {
@@ -426,37 +412,57 @@ namespace NCB_INV
                         reader["Bind"].ToString() ?? string.Empty,
                         Convert.ToInt32(reader["Qty"]),
                         Convert.ToDecimal(reader["Price"]),
-                        reader["Publisher"].ToString() ?? string.Empty
+                        reader["Publisher"].ToString() ?? string.Empty,
+                        DateTime.UtcNow
                     ));
                 }
             }
             return books;
-        }//get local books with optional filter
+        }
+
+        public static Book GetBookByISBN(string isbn)
+        {
+            return _bookCollection.Find(b => b.ISBN == isbn).FirstOrDefault();
+        }
+
+        public static Book? GetLocalBookByISBN(string isbn)
+        {
+            if (string.IsNullOrWhiteSpace(isbn))
+                return null;
+
+            var books = GetLocalBooks();
+            return books?.Find(b => string.Equals(b.ISBN, isbn, StringComparison.OrdinalIgnoreCase));
+        }
+
+        private static void ClearLocalTransactions()
+        {
+            using var conn = new SqliteConnection(sqliteConn);
+            conn.Open();
+            using var cmd = new SqliteCommand("DELETE FROM OfflineTransactions", conn);
+            cmd.ExecuteNonQuery();
+        }
+
+        // Retrieves and merges datasets from both local and cloud databases.
 
         public static bool DoesISBNExist(string isbn)
         {
             return _bookCollection.Find(b => b.ISBN == isbn).Any();
         }
 
-        private static void SaveToSQLite(Book book)
+        private static void SaveToSQLite(Book book, bool isSyncing = false)
         {
             using var connection = new SqliteConnection(sqliteConn);
-
             connection.Open();
             var cmd = connection.CreateCommand();
+
+            DateTime modifiedDate = isSyncing ? book.LastModified : DateTime.UtcNow;
+
             cmd.CommandText = @"
-                    INSERT INTO OfflineBooks (ISBN, Title, Edition, Year, Author, Bind, Qty, Price, Publisher, SyncRequired)
-                    VALUES ($isbn, $title, $edition, $year, $author, $bind, $qty, $price, $publisher, 1)
-                    ON CONFLICT(ISBN) DO UPDATE SET 
-                        Title = $title,
-                        Edition = $edition,
-                        Year = $year,
-                        Author = $author,
-                        Bind = $bind,
-                        Price = $price,
-                        Publisher = $publisher,
-                        Qty = $qty,
-                        SyncRequired = 1;";
+            INSERT INTO OfflineBooks (ISBN, Title, Edition, Year, Author, Bind, Qty, Price, Publisher, LastModified)
+            VALUES ($isbn, $title, $edition, $year, $author, $bind, $qty, $price, $publisher, $date)
+            ON CONFLICT(ISBN) DO UPDATE SET 
+            Title=$title, Edition=$edition, Year=$year, Author=$author, Bind=$bind, 
+            Price=$price, Publisher=$publisher, Qty=$qty, LastModified=$date;";
 
             cmd.Parameters.AddWithValue("$isbn", book.ISBN);
             cmd.Parameters.AddWithValue("$title", book.Title);
@@ -467,6 +473,7 @@ namespace NCB_INV
             cmd.Parameters.AddWithValue("$qty", book.Qty);
             cmd.Parameters.AddWithValue("$price", book.Price);
             cmd.Parameters.AddWithValue("$publisher", book.Publisher);
+            cmd.Parameters.AddWithValue("$date", modifiedDate);
 
             cmd.ExecuteNonQuery();
         }
@@ -508,7 +515,7 @@ namespace NCB_INV
             }
             transaction.Commit();
 
-        }//bulk save to sqlite for multiple books
+        }
 
         public static void SaveBook(Book book)
         {
@@ -534,9 +541,12 @@ namespace NCB_INV
             _bookCollection.DeleteOne(b => b.ISBN == isbn);
         }
 
-        public static Book GetBookByISBN(string isbn)
+        public static void SyncBookQuantitiesLocal(List<Book> books)
         {
-            return _bookCollection.Find(b => b.ISBN == isbn).FirstOrDefault();
+            if (books == null || books.Count == 0)
+                return;
+
+            BulkSaveToSQLite(books);
         }
 
         public static void BulkImportBooks(List<Book> books)
@@ -582,6 +592,8 @@ namespace NCB_INV
             }
         }
 
+        // Handles single and bulk stock updates across Mongo and SQLite.
+
         private static DataTable ToDataTable(List<Book> books)
         {
             DataTable dt = new();
@@ -615,6 +627,8 @@ namespace NCB_INV
 
             public int GetHashCode(Book obj) => obj.ISBN.GetHashCode();
         }
+
+        // Data conversion and deduplication logic for UI binding.
 
         public static UserAccount? Login(string username, string password)
         {
@@ -708,20 +722,7 @@ namespace NCB_INV
             public static UserAccount? User { get; set; }
         }
 
-        public static void SyncBookQuantitiesLocal(List<Book> books)
-        {
-            if (books == null || books.Count == 0)
-                return;
+        // Manages user access, hashes passwords, and caches credentials for offline login.
 
-            BulkSaveToSQLite(books);
-        }
-        public static Book? GetLocalBookByISBN(string isbn)
-        {
-            if (string.IsNullOrWhiteSpace(isbn))
-                return null;
-
-            var books = GetLocalBooks();
-            return books?.Find(b => string.Equals(b.ISBN, isbn, StringComparison.OrdinalIgnoreCase));
-        }
     }
 }

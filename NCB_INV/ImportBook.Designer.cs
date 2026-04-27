@@ -41,6 +41,7 @@
             label2 = new Label();
             btnScanBook = new Button();
             lblSyncStatus = new Label();
+            lblNetStatus = new Label();
             ((System.ComponentModel.ISupportInitialize)dgvBookList).BeginInit();
             SuspendLayout();
             // 
@@ -62,7 +63,7 @@
             dataGridViewCellStyle2.WrapMode = DataGridViewTriState.True;
             dgvBookList.ColumnHeadersDefaultCellStyle = dataGridViewCellStyle2;
             dgvBookList.ColumnHeadersHeightSizeMode = DataGridViewColumnHeadersHeightSizeMode.AutoSize;
-            dgvBookList.Location = new Point(12, 112);
+            dgvBookList.Location = new Point(12, 149);
             dgvBookList.Name = "dgvBookList";
             dgvBookList.ReadOnly = true;
             dgvBookList.RowHeadersWidth = 51;
@@ -73,7 +74,7 @@
             // 
             // btnReload
             // 
-            btnReload.Location = new Point(992, 12);
+            btnReload.Location = new Point(992, 49);
             btnReload.Name = "btnReload";
             btnReload.Size = new Size(148, 43);
             btnReload.TabIndex = 1;
@@ -83,7 +84,7 @@
             // 
             // btnImport
             // 
-            btnImport.Location = new Point(992, 184);
+            btnImport.Location = new Point(992, 221);
             btnImport.Name = "btnImport";
             btnImport.Size = new Size(148, 43);
             btnImport.TabIndex = 2;
@@ -93,7 +94,7 @@
             // 
             // btnAddBook
             // 
-            btnAddBook.Location = new Point(992, 135);
+            btnAddBook.Location = new Point(992, 172);
             btnAddBook.Name = "btnAddBook";
             btnAddBook.Size = new Size(148, 43);
             btnAddBook.TabIndex = 3;
@@ -103,7 +104,7 @@
             // 
             // btnModifyBook
             // 
-            btnModifyBook.Location = new Point(992, 233);
+            btnModifyBook.Location = new Point(992, 270);
             btnModifyBook.Name = "btnModifyBook";
             btnModifyBook.Size = new Size(148, 43);
             btnModifyBook.TabIndex = 4;
@@ -113,7 +114,7 @@
             // 
             // btnDeleteBook
             // 
-            btnDeleteBook.Location = new Point(992, 282);
+            btnDeleteBook.Location = new Point(992, 319);
             btnDeleteBook.Name = "btnDeleteBook";
             btnDeleteBook.Size = new Size(148, 43);
             btnDeleteBook.TabIndex = 5;
@@ -123,7 +124,7 @@
             // 
             // btnSearch
             // 
-            btnSearch.Location = new Point(838, 12);
+            btnSearch.Location = new Point(838, 49);
             btnSearch.Name = "btnSearch";
             btnSearch.Size = new Size(148, 43);
             btnSearch.TabIndex = 7;
@@ -134,7 +135,7 @@
             // txtSearch
             // 
             txtSearch.Font = new Font("Segoe UI", 13.8F, FontStyle.Regular, GraphicsUnit.Point, 0);
-            txtSearch.Location = new Point(12, 15);
+            txtSearch.Location = new Point(12, 52);
             txtSearch.Name = "txtSearch";
             txtSearch.Size = new Size(820, 38);
             txtSearch.TabIndex = 8;
@@ -143,7 +144,7 @@
             // 
             label2.AutoSize = true;
             label2.Font = new Font("Segoe UI", 18F, FontStyle.Bold, GraphicsUnit.Point, 0);
-            label2.Location = new Point(437, 68);
+            label2.Location = new Point(437, 105);
             label2.Name = "label2";
             label2.Size = new Size(170, 41);
             label2.TabIndex = 9;
@@ -151,7 +152,7 @@
             // 
             // btnScanBook
             // 
-            btnScanBook.Location = new Point(992, 331);
+            btnScanBook.Location = new Point(992, 368);
             btnScanBook.Name = "btnScanBook";
             btnScanBook.Size = new Size(148, 43);
             btnScanBook.TabIndex = 10;
@@ -163,17 +164,26 @@
             // 
             lblSyncStatus.AutoSize = true;
             lblSyncStatus.Font = new Font("Segoe UI", 16.2F, FontStyle.Regular, GraphicsUnit.Point, 0);
-            lblSyncStatus.Location = new Point(17, 398);
+            lblSyncStatus.Location = new Point(17, 435);
             lblSyncStatus.Name = "lblSyncStatus";
-            lblSyncStatus.Size = new Size(92, 38);
+            lblSyncStatus.Size = new Size(0, 38);
             lblSyncStatus.TabIndex = 11;
-            lblSyncStatus.Text = "Ready";
+            // 
+            // lblNetStatus
+            // 
+            lblNetStatus.AutoSize = true;
+            lblNetStatus.Font = new Font("Segoe UI", 16.2F, FontStyle.Regular, GraphicsUnit.Point, 0);
+            lblNetStatus.Location = new Point(17, 9);
+            lblNetStatus.Name = "lblNetStatus";
+            lblNetStatus.Size = new Size(0, 38);
+            lblNetStatus.TabIndex = 13;
             // 
             // ImportBook
             // 
             AutoScaleDimensions = new SizeF(8F, 20F);
             AutoScaleMode = AutoScaleMode.Font;
-            ClientSize = new Size(1146, 449);
+            ClientSize = new Size(1146, 484);
+            Controls.Add(lblNetStatus);
             Controls.Add(lblSyncStatus);
             Controls.Add(btnScanBook);
             Controls.Add(label2);
@@ -207,5 +217,6 @@
         private Label label2;
         private Button btnScanBook;
         private Label lblSyncStatus;
+        private Label lblNetStatus;
     }
 }

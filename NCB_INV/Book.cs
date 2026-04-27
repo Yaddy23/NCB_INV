@@ -20,8 +20,10 @@ namespace NCB_INV
         public decimal Price { get; set; }
         public string Publisher { get; set; }
 
+        public DateTime LastModified { get; set; }
+
         public Book(string isbn, string title, string edition, string year,
-                    string author, string bind, int qty, decimal price, string publisher)
+                    string author, string bind, int qty, decimal price, string publisher,DateTime lastModified)
         {
             ISBN = isbn;
             Title = title;
@@ -32,6 +34,7 @@ namespace NCB_INV
             Qty = qty;
             Price = price;
             Publisher = publisher;
+            LastModified = lastModified;
         }
     }
 }

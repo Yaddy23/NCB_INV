@@ -13,7 +13,7 @@ namespace NCB_INV
 {
     public partial class BookScanner : Form
     {
-        private Book currentbook;
+        private Book? currentbook;
 
         public BookScanner()
         {
@@ -32,7 +32,7 @@ namespace NCB_INV
                 if (string.IsNullOrEmpty(isbn)) return;
 
                 currentbook = DBConnection.GetBookByISBN(isbn);
-                string currentuser = DBConnection.CurrentSession.User.DisplayName;
+                string currentuser = DBConnection.CurrentSession.User?.DisplayName ?? "Unknown User";
 
                 if (currentbook != null)
                 {
@@ -70,7 +70,7 @@ namespace NCB_INV
             ProcessExcelBulkUpdate(false);// release
         }
 
-        private void ProcessExcelBulkUpdate(bool isStockIn)
+        private static void ProcessExcelBulkUpdate(bool isStockIn)
         {
             OpenFileDialog ofd = new() { Filter = "Excel Files|*.xlsx;*.xls" };
 
@@ -96,14 +96,14 @@ namespace NCB_INV
                         var groupedData = table.AsEnumerable()
                             .Skip(1)
                             .Where(r => !string.IsNullOrEmpty(r[0]?.ToString()))
-                            .GroupBy(r => r[0].ToString().Trim());
+                            .GroupBy(r => r[0]?.ToString()?.Trim() ?? string.Empty);
 
                         foreach (var group in groupedData)
                         {
                             string isbn = group.Key;
                             int countInExcel = group.Count();
 
-                            Book book = DBConnection.GetLocalBookByISBN(isbn);
+                            Book? book = DBConnection.GetLocalBookByISBN(isbn);
 
                             if (book != null)
                             {
@@ -166,7 +166,7 @@ namespace NCB_INV
             }
         }
 
-        private void GenerateAndOpenReport(string html, bool isStockIn)
+        private static void GenerateAndOpenReport(string html, bool isStockIn)
         {
             string folderName = isStockIn ? "StockIn_Reports" : "Release_Reports";
             string targetFolder = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "NCB_INVENTORY", folderName);
@@ -180,7 +180,7 @@ namespace NCB_INV
             Process.Start(new ProcessStartInfo(filePath) { UseShellExecute = true });
         }
 
-        private string GetHtmlTemplate(string source, string rows, int success, int fails, string type)
+        private static string GetHtmlTemplate(string source, string rows, int success, int fails, string type)
         {
             string logoPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "ncblogo.png");
             string logoUri = File.Exists(logoPath) ? new Uri(logoPath).AbsoluteUri : "";

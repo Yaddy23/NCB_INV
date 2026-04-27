@@ -12,9 +12,9 @@ namespace NCB_INV
 {
     public partial class BookEditorForm : Form
     {
-        public Book BookData { get; set; }
+        public Book? BookData { get; set; }
         private bool isEditMode = false;
-        public BookEditorForm(Book existingbook = null)
+        public BookEditorForm(Book? existingbook = null)
         {
             InitializeComponent();
             this.FormBorderStyle = FormBorderStyle.FixedSingle;
@@ -43,15 +43,15 @@ namespace NCB_INV
 
         private void PopulateFields()
         {
-            txtISBN.Text = BookData.ISBN;
-            txtTitle.Text = BookData.Title;
-            txtEdition.Text = BookData.Edition;
-            txtYear.Text = BookData.Year;
-            txtAuthor.Text = BookData.Author;
-            txtBind.Text = BookData.Bind;
-            txtQty.Text = BookData.Qty.ToString();
-            txtPrice.Text = BookData.Price.ToString();
-            txtPublisher.Text = BookData.Publisher;
+            txtISBN.Text = BookData?.ISBN;
+            txtTitle.Text = BookData?.Title;
+            txtEdition.Text = BookData?.Edition;
+            txtYear.Text = BookData?.Year;
+            txtAuthor.Text = BookData?.Author;
+            txtBind.Text = BookData?.Bind;
+            txtQty.Text = BookData?.Qty.ToString();
+            txtPrice.Text = BookData?.Price.ToString();
+            txtPublisher.Text = BookData?.Publisher;
         }
 
         private void BookEditorForm_Load(object sender, EventArgs e)
@@ -77,7 +77,8 @@ namespace NCB_INV
                 txtBind.Text,
                 int.Parse(txtQty.Text),
                 decimal.Parse(txtPrice.Text),
-                txtPublisher.Text
+                txtPublisher.Text,
+                DateTime.Now
             );
             DBConnection.LogTransaction(txtISBN.Text, txtTitle.Text, int.Parse(txtQty.Text),  txtQty.Text, "Initial Stock Entry", currentuser);
             this.DialogResult = DialogResult.OK;
@@ -99,7 +100,7 @@ namespace NCB_INV
 
                     try
                     {
-                        Book foundBook = await DBConnection.ScrapeBookData(isbn);
+                        Book? foundBook = await DBConnection.ScrapeBookData(isbn);
 
                         if (foundBook != null)
                         {

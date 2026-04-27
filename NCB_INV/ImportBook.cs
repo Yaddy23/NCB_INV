@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Data;
 using System.IO;
+using System.Net.NetworkInformation;
 using System.Text;
 using System.Windows.Forms;
 using ExcelDataReader;
@@ -12,6 +13,7 @@ namespace NCB_INV
     public partial class ImportBook : Form
     {
         private System.Windows.Forms.Timer syncTimer;
+        private System.Windows.Forms.Timer conTimer;
         public ImportBook()
         {
             InitializeComponent();
@@ -19,7 +21,46 @@ namespace NCB_INV
             this.FormBorderStyle = FormBorderStyle.FixedSingle;
             this.MaximizeBox = false;
             this.StartPosition = FormStartPosition.CenterScreen;
+
+            conTimer = new System.Windows.Forms.Timer();
+            conTimer.Interval = 5000;
+            conTimer.Tick += ConTimer_Tick;
+            conTimer.Start();
         }
+
+        private async void ConTimer_Tick(object? sender, EventArgs e)
+        {
+            bool isConnected = await Task.Run(() => IsInternetAvailable());
+            UpdateUI(isConnected);
+        }
+
+        private bool IsInternetAvailable()
+        {
+            try
+            {
+                using (Ping ping = new Ping())
+                {
+                    PingReply reply = ping.Send("8.8.8.8", 2000);
+                    return reply.Status == IPStatus.Success;
+                }
+            }
+            catch { return false; }
+        }
+
+        private void UpdateUI(bool isConnected)
+        {
+            if (isConnected)
+            {
+                lblNetStatus.Text = "● Online";
+                lblNetStatus.ForeColor = Color.Green;
+            }
+            else
+            {
+                lblNetStatus.Text = "○ Offline (Local Only)";
+                lblNetStatus.ForeColor = Color.Red;
+            }
+        }
+
 
         private void SetupAutoSync()
         {
@@ -145,7 +186,8 @@ namespace NCB_INV
                     row.Cells["Bind"].Value.ToString(),
                     oldQty,
                     Convert.ToDecimal(row.Cells["Price"].Value),
-                    row.Cells["Publisher"].Value.ToString()
+                    row.Cells["Publisher"].Value.ToString(),
+                    DateTime.Now
                 );
 
                 using var editor = new BookEditorForm(selected);
@@ -202,7 +244,8 @@ namespace NCB_INV
                                     row[5]?.ToString() ?? "",
                                     row[6] == DBNull.Value ? 0 : Convert.ToInt32(row[6]),
                                     row[7] == DBNull.Value ? 0m : Convert.ToDecimal(row[7]),
-                                    row[8]?.ToString() ?? ""
+                                    row[8]?.ToString() ?? "",
+                                    DateTime.Now
                                 );
 
                                 batchList.Add(excelBook);
