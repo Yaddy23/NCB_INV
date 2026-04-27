@@ -26,6 +26,7 @@ namespace NCB_INV
             conTimer.Interval = 5000;
             conTimer.Tick += ConTimer_Tick;
             conTimer.Start();
+
         }
 
         private async void ConTimer_Tick(object? sender, EventArgs e)
@@ -65,7 +66,7 @@ namespace NCB_INV
         private void SetupAutoSync()
         {
             syncTimer = new System.Windows.Forms.Timer();
-            syncTimer.Interval = 30000;
+            syncTimer.Interval = 300000;
             syncTimer.Tick += async (s, e) => await RunBackgroundSync();
             syncTimer.Start();
         }
@@ -77,7 +78,7 @@ namespace NCB_INV
             {
                 if (!DBConnection.IsCloudAvailable())
                 {
-                    lblSyncStatus.Text = "Status: Cloud Offline (Saving locally)";
+                    lblSyncStatus.Text = "Status: Offline (Local Only)";
                     lblSyncStatus.ForeColor = Color.OrangeRed;
                 }
                 return;
@@ -89,7 +90,7 @@ namespace NCB_INV
 
             try
             {
-                await Task.Run(() => DBConnection.SyncOfflineData());
+                await Task.Run(async () => await DBConnection.ExecuteDeltaSync());
 
                 this.Invoke((MethodInvoker)delegate
                 {
@@ -99,9 +100,10 @@ namespace NCB_INV
                 lblSyncStatus.Text = $"Last Sync: {DateTime.Now:hh:mm:ss tt}";
                 lblSyncStatus.ForeColor = Color.Green;
             }
-            catch
+            catch (Exception ex)
             {
-                lblSyncStatus.Text = "Status: Sync Failed (Retrying)";
+                System.Diagnostics.Debug.WriteLine($"Sync Failure: {ex.Message}");
+                lblSyncStatus.Text = "Status: Sync Failed";
                 lblSyncStatus.ForeColor = Color.Red;
             }
             finally
@@ -118,7 +120,7 @@ namespace NCB_INV
             dgvBookList.DataSource = freshData;
         }
 
-        private void ImportBook_Load(object sender, EventArgs e)
+        private async void ImportBook_Load(object sender, EventArgs e)
         {
             Color primaryNavy = ColorTranslator.FromHtml("#2C3E50");
             Color accentBlue = ColorTranslator.FromHtml("#3498DB");
@@ -130,6 +132,8 @@ namespace NCB_INV
             dgvBookList.ColumnHeadersDefaultCellStyle.ForeColor = Color.White;
 
             RefreshBookList();
+
+            await RunBackgroundSync();
         }
 
         private void btnSearch_Click(object sender, EventArgs e)

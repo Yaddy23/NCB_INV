@@ -350,7 +350,6 @@ namespace NCB_INV
             try
             {
                 var bookCollection = _bookCollection ?? _database.GetCollection<Book>("Books");
-
                 using var conn = new SqliteConnection(sqliteConn);
                 conn.Open();
 
@@ -361,19 +360,18 @@ namespace NCB_INV
                 var dirtyBooks = new List<Book>();
                 while (reader.Read())
                 {
-                    var book = new Book(
-                        reader["ISBN"].ToString() ?? string.Empty,
-                        reader["Title"].ToString() ?? string.Empty,
-                        reader["Edition"].ToString() ?? string.Empty,
-                        reader["Year"].ToString() ?? string.Empty,
-                        reader["Author"].ToString() ?? string.Empty,
-                        reader["Bind"].ToString() ?? string.Empty,
+                    dirtyBooks.Add(new Book(
+                        reader["ISBN"].ToString() ?? "",
+                        reader["Title"].ToString() ?? "",
+                        reader["Edition"].ToString() ?? "",
+                        reader["Year"].ToString() ?? "",
+                        reader["Author"].ToString() ?? "",
+                        reader["Bind"].ToString() ?? "",
                         Convert.ToInt32(reader["Qty"]),
                         Convert.ToDecimal(reader["Price"]),
-                        reader["Publisher"].ToString() ?? string.Empty,
+                        reader["Publisher"].ToString() ?? "",
                         Convert.ToDateTime(reader["LastModified"])
-                    );
-                    dirtyBooks.Add(book);
+                    ));
                 }
                 reader.Close();
 
@@ -381,24 +379,39 @@ namespace NCB_INV
                 {
                     await bookCollection.ReplaceOneAsync(b => b.ISBN == book.ISBN, book, new ReplaceOptions { IsUpsert = true });
 
-                    using var updateCmd = new SqliteCommand("UPDATE OfflineBooks SET SyncRequired = 0 WHERE ISBN = @isbn", conn);
+                    using var updateCmd = new SqliteCommand(
+                        "UPDATE OfflineBooks SET SyncRequired = 0 WHERE ISBN = @isbn AND LastModified <= @mod", conn);
                     updateCmd.Parameters.AddWithValue("@isbn", book.ISBN);
+                    updateCmd.Parameters.AddWithValue("@mod", book.LastModified);
                     updateCmd.ExecuteNonQuery();
                 }
 
-                var cloudBooks = await bookCollection.Find(new BsonDocument()).ToListAsync();
+                var localMaxDate = GetLocalLastModifiedMax();
 
-                foreach (var cBook in cloudBooks)
+                var cloudFilter = Builders<Book>.Filter.Gt(b => b.LastModified, localMaxDate);
+                var cloudBooks = await bookCollection.Find(cloudFilter).ToListAsync();
+
+                using (var transaction = conn.BeginTransaction())
                 {
-                    SaveToSQLite(cBook, isSyncing: true);
+                    foreach (var cBook in cloudBooks)
+                    {
+                        SaveToSQLite(cBook, isSyncing: true);
+                    }
+                    transaction.Commit();
                 }
 
-                System.Diagnostics.Debug.WriteLine($"Sync Complete: Pushed {dirtyBooks.Count} items, Pulled {cloudBooks.Count} items.");
+                System.Diagnostics.Debug.WriteLine($"Sync: Pushed {dirtyBooks.Count}, Pulled {cloudBooks.Count}");
             }
-            catch (Exception ex)
-            {
-                System.Diagnostics.Debug.WriteLine("Delta Sync Error: " + ex.Message);
-            }
+            catch (Exception ex) { System.Diagnostics.Debug.WriteLine("Delta Sync Error: " + ex.Message); }
+        }
+
+        private static DateTime GetLocalLastModifiedMax()
+        {
+            using var conn = new SqliteConnection(sqliteConn);
+            conn.Open();
+            using var cmd = new SqliteCommand("SELECT MAX(LastModified) FROM OfflineBooks", conn);
+            var result = cmd.ExecuteScalar();
+            return result == DBNull.Value ? DateTime.MinValue : Convert.ToDateTime(result);
         }
 
         // Manages the connection state and pushes local cached data to MongoDB.
