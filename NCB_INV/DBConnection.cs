@@ -514,7 +514,7 @@ namespace NCB_INV
                         Convert.ToInt32(reader["Qty"]),
                         Convert.ToDecimal(reader["Price"]),
                         reader["Publisher"].ToString() ?? string.Empty,
-                        DateTime.UtcNow
+                        reader["LastModified"] == DBNull.Value ? DateTime.MinValue : Convert.ToDateTime(reader["LastModified"])
                     ));
                 }
             }
