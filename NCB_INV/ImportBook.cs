@@ -85,26 +85,27 @@ namespace NCB_INV
             }
 
             isSyncing = true;
-            lblSyncStatus.Text = "Status: Syncing...";
+            lblSyncStatus.Text = "Status: Syncing & Resolving...";
             lblSyncStatus.ForeColor = Color.Blue;
 
             try
             {
                 await Task.Run(async () => await DBConnection.ExecuteDeltaSync());
 
-                this.Invoke((MethodInvoker)delegate
+               this.Invoke((MethodInvoker)delegate
                 {
                     RefreshBookList();
+                    lblSyncStatus.Text = $"Last Sync: {DateTime.Now:hh:mm:ss tt}";
+                    lblSyncStatus.ForeColor = Color.Green;
                 });
-
-                lblSyncStatus.Text = $"Last Sync: {DateTime.Now:hh:mm:ss tt}";
-                lblSyncStatus.ForeColor = Color.Green;
             }
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine($"Sync Failure: {ex.Message}");
-                lblSyncStatus.Text = "Status: Sync Failed";
-                lblSyncStatus.ForeColor = Color.Red;
+                this.Invoke((MethodInvoker)delegate {
+                    lblSyncStatus.Text = "Status: Sync Failed";
+                    lblSyncStatus.ForeColor = Color.Red;
+                });
             }
             finally
             {
@@ -355,6 +356,11 @@ namespace NCB_INV
                         row.DefaultCellStyle.BackColor = Color.White; // Reset if high stock
                 }
             }
+        }
+
+        private void ImportBook_FormClosing(object sender, FormClosingEventArgs e)
+        {
+            CompactLocalDatabase();
         }
     }
 }

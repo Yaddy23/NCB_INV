@@ -419,12 +419,17 @@ namespace NCB_INV
                 {
                     foreach (var cBook in cloudBooks)
                     {
-                        SaveToSQLite(cBook, isSyncing: true);
+                        var localVersion = GetLocalBookByISBN(cBook.ISBN);
+
+                        if (localVersion == null || cBook.LastModified > localVersion.LastModified)
+                        {
+                            SaveToSQLite(cBook, isSyncing: true);
+                        }
                     }
                     transaction.Commit();
                 }
 
-                System.Diagnostics.Debug.WriteLine($"Sync: Pushed {dirtyBooks.Count}, Pulled {cloudBooks.Count}");
+                System.Diagnostics.Debug.WriteLine($"Delta Sync: Pushed {dirtyBooks.Count}, Resolved & Pulled {cloudBooks.Count}");
             }
             catch (Exception ex) { System.Diagnostics.Debug.WriteLine("Delta Sync Error: " + ex.Message); }
         }
@@ -690,7 +695,26 @@ namespace NCB_INV
             }
         }
 
+
         // Handles single and bulk stock updates across Mongo and SQLite.
+
+        public static void CompactLocalDatabase()
+        {
+            try
+            {
+                using var conn = new SqliteConnection(sqliteConn);
+                conn.Open();
+                using var cmd = conn.CreateCommand();
+                cmd.CommandText = "VACUUM;"; 
+                cmd.ExecuteNonQuery();
+                System.Diagnostics.Debug.WriteLine("SQLite Compaction Complete.");
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine("Compaction Error: " + ex.Message);
+            }
+        }
+        // Rebuilds the database file into a compact version
 
         private static DataTable ToDataTable(List<Book> books)
         {

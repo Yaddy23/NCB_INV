@@ -198,6 +198,7 @@
             Name = "ImportBook";
             StartPosition = FormStartPosition.CenterScreen;
             Text = "INVENTORY";
+            FormClosing += ImportBook_FormClosing;
             Load += ImportBook_Load;
             ((System.ComponentModel.ISupportInitialize)dgvBookList).EndInit();
             ResumeLayout(false);
