@@ -128,7 +128,6 @@ namespace NCB_INV
                             }
                             else
                             {
-                                // Still fail if the ISBN doesn't exist in the database at all
                                 tableRows.AppendLine($"<tr style='background-color: #ffe6e6;'><td>{isbn}</td><td style='color: red;'>NOT FOUND</td><td>{countInExcel}</td></tr>");
                                 failCount += countInExcel;
                             }
