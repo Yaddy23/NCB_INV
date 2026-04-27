@@ -320,9 +320,10 @@ namespace NCB_INV
                     Qty INTEGER,
                     Price DECIMAL,
                     Publisher TEXT,
-                    SyncRequired INTEGER DEFAULT 1,
+                    SyncRequired INTEGER DEFAULT 0,
                     LastModified DATETIME DEFAULT CURRENT_TIMESTAMP
-                );";
+                );
+                CREATE INDEX IF NOT EXISTS idx_title ON OfflineBooks(Title);";
             command.ExecuteNonQuery();
         }
 
@@ -339,6 +340,64 @@ namespace NCB_INV
             catch
             {
                 return false;
+            }
+        }
+
+        public static async Task ExecuteDeltaSync()
+        {
+            if (_database == null || !IsCloudAvailable()) return;
+
+            try
+            {
+                var bookCollection = _bookCollection ?? _database.GetCollection<Book>("Books");
+
+                using var conn = new SqliteConnection(sqliteConn);
+                conn.Open();
+
+                string getDirtyQuery = "SELECT * FROM OfflineBooks WHERE SyncRequired = 1";
+                using var cmd = new SqliteCommand(getDirtyQuery, conn);
+                using var reader = cmd.ExecuteReader();
+
+                var dirtyBooks = new List<Book>();
+                while (reader.Read())
+                {
+                    var book = new Book(
+                        reader["ISBN"].ToString() ?? string.Empty,
+                        reader["Title"].ToString() ?? string.Empty,
+                        reader["Edition"].ToString() ?? string.Empty,
+                        reader["Year"].ToString() ?? string.Empty,
+                        reader["Author"].ToString() ?? string.Empty,
+                        reader["Bind"].ToString() ?? string.Empty,
+                        Convert.ToInt32(reader["Qty"]),
+                        Convert.ToDecimal(reader["Price"]),
+                        reader["Publisher"].ToString() ?? string.Empty,
+                        Convert.ToDateTime(reader["LastModified"])
+                    );
+                    dirtyBooks.Add(book);
+                }
+                reader.Close();
+
+                foreach (var book in dirtyBooks)
+                {
+                    await bookCollection.ReplaceOneAsync(b => b.ISBN == book.ISBN, book, new ReplaceOptions { IsUpsert = true });
+
+                    using var updateCmd = new SqliteCommand("UPDATE OfflineBooks SET SyncRequired = 0 WHERE ISBN = @isbn", conn);
+                    updateCmd.Parameters.AddWithValue("@isbn", book.ISBN);
+                    updateCmd.ExecuteNonQuery();
+                }
+
+                var cloudBooks = await bookCollection.Find(new BsonDocument()).ToListAsync();
+
+                foreach (var cBook in cloudBooks)
+                {
+                    SaveToSQLite(cBook, isSyncing: true);
+                }
+
+                System.Diagnostics.Debug.WriteLine($"Sync Complete: Pushed {dirtyBooks.Count} items, Pulled {cloudBooks.Count} items.");
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine("Delta Sync Error: " + ex.Message);
             }
         }
 
@@ -455,14 +514,15 @@ namespace NCB_INV
             connection.Open();
             var cmd = connection.CreateCommand();
 
+            int syncFlag = isSyncing ? 0 : 1;
             DateTime modifiedDate = isSyncing ? book.LastModified : DateTime.UtcNow;
 
             cmd.CommandText = @"
-            INSERT INTO OfflineBooks (ISBN, Title, Edition, Year, Author, Bind, Qty, Price, Publisher, LastModified)
-            VALUES ($isbn, $title, $edition, $year, $author, $bind, $qty, $price, $publisher, $date)
+            INSERT INTO OfflineBooks (ISBN, Title, Edition, Year, Author, Bind, Qty, Price, Publisher, LastModified, SyncRequired)
+            VALUES ($isbn, $title, $edition, $year, $author, $bind, $qty, $price, $publisher, $date, $sync)
             ON CONFLICT(ISBN) DO UPDATE SET 
             Title=$title, Edition=$edition, Year=$year, Author=$author, Bind=$bind, 
-            Price=$price, Publisher=$publisher, Qty=$qty, LastModified=$date;";
+            Price=$price, Publisher=$publisher, Qty=$qty, LastModified=$date, SyncRequired=$sync;";
 
             cmd.Parameters.AddWithValue("$isbn", book.ISBN);
             cmd.Parameters.AddWithValue("$title", book.Title);
@@ -474,6 +534,7 @@ namespace NCB_INV
             cmd.Parameters.AddWithValue("$price", book.Price);
             cmd.Parameters.AddWithValue("$publisher", book.Publisher);
             cmd.Parameters.AddWithValue("$date", modifiedDate);
+            cmd.Parameters.AddWithValue("$sync", syncFlag);
 
             cmd.ExecuteNonQuery();
         }
