@@ -1,45 +1,36 @@
 <h1 align="center">📚 NCB INVENTORY SYSTEM</h1>
-<h2 align="center">A High-Performance Hybrid Warehouse Management Solution</h2>
+<h2 align="center">The NCB Inventory System is a professional-grade warehouse management application built with C# (.NET WinForms). It is specifically designed to handle high-volume book distribution with a focus on data integrity, speed, and 100% operational uptime.</h2>
 
-<h1 align="center">🚀 Key Functions</h1>
-<h3>📦 Intelligent Bulk Processing</h3>
-Mass Update Engine: Optimized to process thousands of entries via Excel (.xlsx, .xls) for both Stock-In and Stock-Release operations.
+<h3>🏛️ Core Architecture</h3>
+The system uses a Two-Tier Database Strategy to ensure the warehouse never stops moving:
 
-Buffered Logging: Uses a custom aggregation strategy to log bulk actions. Instead of single entries, it saves formatted lists of ISBNs, Titles, and Quantities into a single transaction document to maintain a clean audit trail.
+Cloud Tier (MongoDB): Acts as the global "source of truth." All book data and transaction histories are stored here for multi-location access.
 
-Automated HTML Reporting: Generates instant, color-coded diagnostic reports after every import to track success rates and identify missing items.
+Local Tier (SQLite): Acts as a high-speed local cache. This allows staff to perform Stock-In and Stock-Release operations even if the internet goes down, with a built-in Delta Sync engine to reconcile data once the connection is restored.
 
-<h3>🔍 Real-Time Inventory Control</h3>
-Dynamic DataGrid: Features live-refreshing views with status highlighting (e.g., Red for out-of-stock items).
+<h3>🚀 Key Functional Modules</h3>
+1. Intelligent Bulk Processing
+Mass Update Engine: Specifically optimized to handle thousands of records via Excel (.xlsx/.xls) imports.
 
-Instant Search: Multi-parameter search functionality to locate stock across the entire warehouse database.
+Diagnostic Reporting: Automatically generates color-coded HTML reports after every bulk import to show success rates and highlight missing items.
 
-<h3>🔐 Enterprise-Grade Security</h3>
-Cryptographic Hashing: Uses SHA-256 encryption for user passwords, ensuring data privacy.
+Buffered Logging: Instead of logging every single book individually, bulk actions are aggregated into single documents to maintain a clean and searchable audit trail.
 
-Role-Based Audit Logs: Every action is timestamped and tied to the DisplayName of the authenticated user.
+2. Real-Time Inventory Control
+Dynamic Dashboard: A live-refreshing DataGrid with status highlighting (e.g., color-coding items that are low or out-of-stock).
 
-<h3>🗄️ Database Architecture</h3>
-This system is built for 100% Uptime using a two-tier approach:
+Instant Search: A multi-parameter search system that lets users find stock by ISBN, Title, Author, or Publisher instantly.
 
-MongoDB (Cloud Tier): Acts as the primary global repository for all book data and transaction history.
+3. Security & Accountability
+Enterprise Encryption: Uses SHA-256 cryptographic hashing for user passwords.
 
-SQLite (Local Fallback): Ensures the warehouse remains operational during internet outages by allowing offline data entry and retrieval.
-
-Data Consistency: Implements custom mapping for nested MongoDB _id objects to ensure seamless C# object-to-document translation.
+Role-Based Audit Logs: Every stock modification is timestamped and permanently tied to the specific user who performed the action.
 
 <h3>🛠️ Technical Stack</h3>
-Language: C# / .NET (WinForms)
+Framework: .NET / WinForms
 
-Data Parsing: ExcelDataReader (configured with CodePagesEncodingProvider for legacy support)
+Data Parsing: ExcelDataReader (configured for legacy support)
 
-Database Drivers: MongoDB.Driver, System.Data.SQLite
+Database Drivers: MongoDB.Driver & System.Data.SQLite
 
-UI/UX: Custom HTML/CSS Template Engine for reporting
-
-<h3>📦 Deployment</h3>
-The application is published as a Single-File Self-Contained Executable.
-
-No Runtime Required: The .NET environment is bundled inside the .exe.
-
-Zero Install: Fully portable; can be run directly from a USB drive or network share on any Windows x64 system.
+Deployment: Distributed as a Single-File Self-Contained Executable, meaning it runs on any Windows x64 machine without needing to install .NET runtimes separately.
