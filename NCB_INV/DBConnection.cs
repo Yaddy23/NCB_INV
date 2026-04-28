@@ -256,34 +256,6 @@ namespace NCB_INV
             }
         }
 
-        public static List<Transaction> GetLocalTransactions()
-        {
-            var transactions = new List<Transaction>();
-            using var conn = new SqliteConnection(sqliteConn);
-
-            conn.Open();
-            string query = "SELECT * FROM OfflineTransactions";
-            using var cmd = new SqliteCommand(query, conn);
-
-            using var reader = cmd.ExecuteReader();
-
-            while (reader.Read())
-            {
-                transactions.Add(new Transaction
-                {
-                    ISBN = reader["ISBN"].ToString() ?? string.Empty,
-                    Title = reader["Title"].ToString() ?? string.Empty,
-                    ChangeAmount = Convert.ToInt32(reader["ChangeAmount"]),
-                    NewTotal = reader["NewTotal"].ToString() ?? string.Empty,
-                    Reason = reader["Reason"].ToString() ?? string.Empty,
-                    performedBy = reader["PerformedBy"].ToString() ?? string.Empty,
-                    Timestamp = Convert.ToDateTime(reader["Timestamp"])
-                });
-            }
-
-            return transactions;
-        }
-
         // Tracks stock-in/release events, falling back to SQLite if the cloud is down.
 
         private static void InitSQLite()
@@ -362,7 +334,6 @@ namespace NCB_INV
             using var conn = new SqliteConnection(sqliteConn);
             conn.Open();
 
-            // 1. Get ONLY changed items
             string query = "SELECT * FROM OfflineBooks WHERE SyncRequired = 1";
             using (var cmd = new SqliteCommand(query, conn))
             using (var reader = await cmd.ExecuteReaderAsync())
@@ -469,7 +440,7 @@ namespace NCB_INV
             return ToDataTable(combined);
         }
 
-        private static List<Book> GetLocalBooks(string filter = "")
+        public static List<Book> GetLocalBooks(string filter = "")
         {
             var books = new List<Book>();
             using var connection = new SqliteConnection(sqliteConn);

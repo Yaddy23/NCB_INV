@@ -36,13 +36,13 @@
             btnAddBook = new Button();
             btnModifyBook = new Button();
             btnDeleteBook = new Button();
-            btnSearch = new Button();
             txtSearch = new TextBox();
             label2 = new Label();
             btnScanBook = new Button();
             lblSyncStatus = new Label();
             lblNetStatus = new Label();
             flowLayoutPanel_Buttons = new FlowLayoutPanel();
+            lblSuggestion = new Label();
             ((System.ComponentModel.ISupportInitialize)dgvBookList).BeginInit();
             flowLayoutPanel_Buttons.SuspendLayout();
             SuspendLayout();
@@ -65,7 +65,7 @@
             dataGridViewCellStyle2.WrapMode = DataGridViewTriState.True;
             dgvBookList.ColumnHeadersDefaultCellStyle = dataGridViewCellStyle2;
             dgvBookList.ColumnHeadersHeightSizeMode = DataGridViewColumnHeadersHeightSizeMode.AutoSize;
-            dgvBookList.Location = new Point(12, 149);
+            dgvBookList.Location = new Point(12, 192);
             dgvBookList.Name = "dgvBookList";
             dgvBookList.ReadOnly = true;
             dgvBookList.RowHeadersWidth = 51;
@@ -128,29 +128,20 @@
             btnDeleteBook.UseVisualStyleBackColor = true;
             btnDeleteBook.Click += btnDeleteBook_Click;
             // 
-            // btnSearch
-            // 
-            btnSearch.Location = new Point(838, 49);
-            btnSearch.Name = "btnSearch";
-            btnSearch.Size = new Size(148, 43);
-            btnSearch.TabIndex = 7;
-            btnSearch.Text = "Search";
-            btnSearch.UseVisualStyleBackColor = true;
-            btnSearch.Click += btnSearch_Click;
-            // 
             // txtSearch
             // 
             txtSearch.Font = new Font("Segoe UI", 13.8F, FontStyle.Regular, GraphicsUnit.Point, 0);
             txtSearch.Location = new Point(12, 52);
             txtSearch.Name = "txtSearch";
-            txtSearch.Size = new Size(820, 38);
+            txtSearch.Size = new Size(974, 38);
             txtSearch.TabIndex = 8;
+            txtSearch.TextChanged += txtSearch_TextChanged;
             // 
             // label2
             // 
             label2.AutoSize = true;
             label2.Font = new Font("Segoe UI", 18F, FontStyle.Bold, GraphicsUnit.Point, 0);
-            label2.Location = new Point(437, 105);
+            label2.Location = new Point(437, 148);
             label2.Name = "label2";
             label2.Size = new Size(170, 41);
             label2.TabIndex = 9;
@@ -171,7 +162,7 @@
             // 
             lblSyncStatus.AutoSize = true;
             lblSyncStatus.Font = new Font("Segoe UI", 16.2F, FontStyle.Regular, GraphicsUnit.Point, 0);
-            lblSyncStatus.Location = new Point(17, 494);
+            lblSyncStatus.Location = new Point(17, 537);
             lblSyncStatus.Name = "lblSyncStatus";
             lblSyncStatus.Size = new Size(0, 38);
             lblSyncStatus.TabIndex = 11;
@@ -192,23 +183,33 @@
             flowLayoutPanel_Buttons.Controls.Add(btnModifyBook);
             flowLayoutPanel_Buttons.Controls.Add(btnDeleteBook);
             flowLayoutPanel_Buttons.Controls.Add(btnScanBook);
-            flowLayoutPanel_Buttons.Location = new Point(186, 428);
+            flowLayoutPanel_Buttons.Location = new Point(12, 471);
             flowLayoutPanel_Buttons.Name = "flowLayoutPanel_Buttons";
             flowLayoutPanel_Buttons.Size = new Size(800, 54);
             flowLayoutPanel_Buttons.TabIndex = 14;
             flowLayoutPanel_Buttons.WrapContents = false;
             // 
+            // lblSuggestion
+            // 
+            lblSuggestion.AutoSize = true;
+            lblSuggestion.Font = new Font("Segoe UI", 16.2F, FontStyle.Regular, GraphicsUnit.Point, 0);
+            lblSuggestion.Location = new Point(18, 97);
+            lblSuggestion.Name = "lblSuggestion";
+            lblSuggestion.Size = new Size(0, 38);
+            lblSuggestion.TabIndex = 15;
+            lblSuggestion.Click += lblSuggestion_Click;
+            // 
             // ImportBook
             // 
             AutoScaleDimensions = new SizeF(8F, 20F);
             AutoScaleMode = AutoScaleMode.Font;
-            ClientSize = new Size(1157, 541);
+            ClientSize = new Size(1157, 582);
+            Controls.Add(lblSuggestion);
             Controls.Add(flowLayoutPanel_Buttons);
             Controls.Add(lblNetStatus);
             Controls.Add(lblSyncStatus);
             Controls.Add(label2);
             Controls.Add(txtSearch);
-            Controls.Add(btnSearch);
             Controls.Add(btnReload);
             Controls.Add(dgvBookList);
             Name = "ImportBook";
@@ -230,12 +231,12 @@
         private Button btnAddBook;
         private Button btnModifyBook;
         private Button btnDeleteBook;
-        private Button btnSearch;
         private TextBox txtSearch;
         private Label label2;
         private Button btnScanBook;
         private Label lblSyncStatus;
         private Label lblNetStatus;
         private FlowLayoutPanel flowLayoutPanel_Buttons;
+        private Label lblSuggestion;
     }
 }

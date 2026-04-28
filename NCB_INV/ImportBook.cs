@@ -92,17 +92,18 @@ namespace NCB_INV
             {
                 await Task.Run(async () => await DBConnection.ExecuteDeltaSync());
 
-               this.Invoke((MethodInvoker)delegate
-                {
-                    RefreshBookList();
-                    lblSyncStatus.Text = $"Last Sync: {DateTime.Now:hh:mm:ss tt}";
-                    lblSyncStatus.ForeColor = Color.Green;
-                });
+                this.Invoke((MethodInvoker)delegate
+                 {
+                     RefreshBookList();
+                     lblSyncStatus.Text = $"Last Sync: {DateTime.Now:hh:mm:ss tt}";
+                     lblSyncStatus.ForeColor = Color.Green;
+                 });
             }
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine($"Sync Failure: {ex.Message}");
-                this.Invoke((MethodInvoker)delegate {
+                this.Invoke((MethodInvoker)delegate
+                {
                     lblSyncStatus.Text = "Status: Sync Failed";
                     lblSyncStatus.ForeColor = Color.Red;
                 });
@@ -372,6 +373,36 @@ namespace NCB_INV
         private void ImportBook_FormClosing(object sender, FormClosingEventArgs e)
         {
             CompactLocalDatabase();
+        }
+
+        private void txtSearch_TextChanged(object sender, EventArgs e)
+        {
+            string query = txtSearch.Text;
+            var allBooks = DBConnection.GetLocalBooks();
+
+            var (results, suggestion) = SearchEngine.FuzzySearch(query, allBooks);
+
+            if (results.Any())
+            {
+                dgvBookList.DataSource = results;
+                lblSuggestion.Visible = false;
+            }
+            else if (!string.IsNullOrEmpty(suggestion))
+            {
+                lblSuggestion.Text = $"Did you mean: {suggestion}?";
+                lblSuggestion.Visible = true;
+                dgvBookList.DataSource = null;
+            }
+            else
+            {
+                lblSuggestion.Visible = false;
+                dgvBookList.DataSource = null;
+            }
+        }
+
+        private void lblSuggestion_Click(object sender, EventArgs e)
+        {
+            txtSearch.Text = lblSuggestion.Text.Replace("Did you mean: ", "").Replace("?", "");
         }
     }
 }

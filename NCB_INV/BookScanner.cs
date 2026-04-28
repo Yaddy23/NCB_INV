@@ -68,7 +68,7 @@ namespace NCB_INV
 
         private void btnOut_Click(object sender, EventArgs e)
         {
-            ProcessExcelBulkUpdate(false);// release
+            ProcessExcelBulkUpdate(false); // release
         }
 
         private static async Task ProcessExcelBulkUpdate(bool isStockIn)
