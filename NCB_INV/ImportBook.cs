@@ -66,7 +66,7 @@ namespace NCB_INV
         private void SetupAutoSync()
         {
             syncTimer = new System.Windows.Forms.Timer();
-            syncTimer.Interval = 30000;
+            syncTimer.Interval = 300000;
             syncTimer.Tick += async (s, e) => await RunBackgroundSync();
             syncTimer.Start();
         }
@@ -377,10 +377,19 @@ namespace NCB_INV
 
         private void txtSearch_TextChanged(object sender, EventArgs e)
         {
-            string query = txtSearch.Text;
-            var allBooks = DBConnection.GetLocalBooks();
+            string query = txtSearch.Text.Trim();
 
-            var (results, suggestion) = SearchEngine.FuzzySearch(query, allBooks);
+            if (string.IsNullOrEmpty(query))
+            {
+                var allBooks = DBConnection.GetLocalBooks();
+                dgvBookList.DataSource = allBooks;
+
+                lblSuggestion.Visible = false;
+                return;
+            }
+
+            var allLocalBooks = DBConnection.GetLocalBooks();
+            var (results, suggestion) = SearchEngine.FuzzySearch(query, allLocalBooks);
 
             if (results.Any())
             {
@@ -391,7 +400,7 @@ namespace NCB_INV
             {
                 lblSuggestion.Text = $"Did you mean: {suggestion}?";
                 lblSuggestion.Visible = true;
-                dgvBookList.DataSource = null;
+                dgvBookList.DataSource = null; 
             }
             else
             {
