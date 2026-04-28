@@ -504,17 +504,19 @@ namespace NCB_INV
             {
                 while (reader.Read())
                 {
+                    int lastModIndex = reader.GetOrdinal("LastModified");
+
                     books.Add(new Book(
-                        reader["ISBN"].ToString() ?? string.Empty,
-                        reader["Title"].ToString() ?? string.Empty,
-                        reader["Edition"].ToString() ?? string.Empty,
-                        reader["Year"].ToString() ?? string.Empty,
-                        reader["Author"].ToString() ?? string.Empty,
-                        reader["Bind"].ToString() ?? string.Empty,
-                        Convert.ToInt32(reader["Qty"]),
-                        Convert.ToDecimal(reader["Price"]),
-                        reader["Publisher"].ToString() ?? string.Empty,
-                        reader["LastModified"] == DBNull.Value ? DateTime.MinValue : Convert.ToDateTime(reader["LastModified"])
+                        reader["ISBN"]?.ToString() ?? string.Empty,
+                        reader["Title"]?.ToString() ?? string.Empty,
+                        reader["Edition"]?.ToString() ?? string.Empty,
+                        reader["Year"]?.ToString() ?? string.Empty,
+                        reader["Author"]?.ToString() ?? string.Empty,
+                        reader["Bind"]?.ToString() ?? string.Empty,
+                        reader["Qty"] == DBNull.Value ? 0 : Convert.ToInt32(reader["Qty"]),
+                        reader["Price"] == DBNull.Value ? 0m : Convert.ToDecimal(reader["Price"]),
+                        reader["Publisher"]?.ToString() ?? string.Empty,
+                        reader.IsDBNull(lastModIndex) ? DateTime.MinValue : reader.GetDateTime(lastModIndex)
                     ));
                 }
             }

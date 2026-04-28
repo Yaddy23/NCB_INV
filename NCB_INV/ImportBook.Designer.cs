@@ -42,7 +42,9 @@
             btnScanBook = new Button();
             lblSyncStatus = new Label();
             lblNetStatus = new Label();
+            flowLayoutPanel_Buttons = new FlowLayoutPanel();
             ((System.ComponentModel.ISupportInitialize)dgvBookList).BeginInit();
+            flowLayoutPanel_Buttons.SuspendLayout();
             SuspendLayout();
             // 
             // dgvBookList
@@ -67,8 +69,8 @@
             dgvBookList.Name = "dgvBookList";
             dgvBookList.ReadOnly = true;
             dgvBookList.RowHeadersWidth = 51;
-            dgvBookList.SelectionMode = DataGridViewSelectionMode.CellSelect;
-            dgvBookList.Size = new Size(974, 273);
+            dgvBookList.SelectionMode = DataGridViewSelectionMode.FullRowSelect;
+            dgvBookList.Size = new Size(1138, 273);
             dgvBookList.TabIndex = 0;
             dgvBookList.CellFormatting += dgvBookList_CellFormatting;
             // 
@@ -84,7 +86,8 @@
             // 
             // btnImport
             // 
-            btnImport.Location = new Point(992, 221);
+            btnImport.Location = new Point(5, 5);
+            btnImport.Margin = new Padding(5);
             btnImport.Name = "btnImport";
             btnImport.Size = new Size(148, 43);
             btnImport.TabIndex = 2;
@@ -94,7 +97,8 @@
             // 
             // btnAddBook
             // 
-            btnAddBook.Location = new Point(992, 172);
+            btnAddBook.Location = new Point(163, 5);
+            btnAddBook.Margin = new Padding(5);
             btnAddBook.Name = "btnAddBook";
             btnAddBook.Size = new Size(148, 43);
             btnAddBook.TabIndex = 3;
@@ -104,7 +108,8 @@
             // 
             // btnModifyBook
             // 
-            btnModifyBook.Location = new Point(992, 270);
+            btnModifyBook.Location = new Point(321, 5);
+            btnModifyBook.Margin = new Padding(5);
             btnModifyBook.Name = "btnModifyBook";
             btnModifyBook.Size = new Size(148, 43);
             btnModifyBook.TabIndex = 4;
@@ -114,7 +119,8 @@
             // 
             // btnDeleteBook
             // 
-            btnDeleteBook.Location = new Point(992, 319);
+            btnDeleteBook.Location = new Point(479, 5);
+            btnDeleteBook.Margin = new Padding(5);
             btnDeleteBook.Name = "btnDeleteBook";
             btnDeleteBook.Size = new Size(148, 43);
             btnDeleteBook.TabIndex = 5;
@@ -152,7 +158,8 @@
             // 
             // btnScanBook
             // 
-            btnScanBook.Location = new Point(992, 368);
+            btnScanBook.Location = new Point(637, 5);
+            btnScanBook.Margin = new Padding(5);
             btnScanBook.Name = "btnScanBook";
             btnScanBook.Size = new Size(148, 43);
             btnScanBook.TabIndex = 10;
@@ -164,7 +171,7 @@
             // 
             lblSyncStatus.AutoSize = true;
             lblSyncStatus.Font = new Font("Segoe UI", 16.2F, FontStyle.Regular, GraphicsUnit.Point, 0);
-            lblSyncStatus.Location = new Point(17, 435);
+            lblSyncStatus.Location = new Point(17, 494);
             lblSyncStatus.Name = "lblSyncStatus";
             lblSyncStatus.Size = new Size(0, 38);
             lblSyncStatus.TabIndex = 11;
@@ -178,21 +185,30 @@
             lblNetStatus.Size = new Size(0, 38);
             lblNetStatus.TabIndex = 13;
             // 
+            // flowLayoutPanel_Buttons
+            // 
+            flowLayoutPanel_Buttons.Controls.Add(btnImport);
+            flowLayoutPanel_Buttons.Controls.Add(btnAddBook);
+            flowLayoutPanel_Buttons.Controls.Add(btnModifyBook);
+            flowLayoutPanel_Buttons.Controls.Add(btnDeleteBook);
+            flowLayoutPanel_Buttons.Controls.Add(btnScanBook);
+            flowLayoutPanel_Buttons.Location = new Point(186, 428);
+            flowLayoutPanel_Buttons.Name = "flowLayoutPanel_Buttons";
+            flowLayoutPanel_Buttons.Size = new Size(800, 54);
+            flowLayoutPanel_Buttons.TabIndex = 14;
+            flowLayoutPanel_Buttons.WrapContents = false;
+            // 
             // ImportBook
             // 
             AutoScaleDimensions = new SizeF(8F, 20F);
             AutoScaleMode = AutoScaleMode.Font;
-            ClientSize = new Size(1146, 484);
+            ClientSize = new Size(1157, 541);
+            Controls.Add(flowLayoutPanel_Buttons);
             Controls.Add(lblNetStatus);
             Controls.Add(lblSyncStatus);
-            Controls.Add(btnScanBook);
             Controls.Add(label2);
             Controls.Add(txtSearch);
             Controls.Add(btnSearch);
-            Controls.Add(btnDeleteBook);
-            Controls.Add(btnModifyBook);
-            Controls.Add(btnAddBook);
-            Controls.Add(btnImport);
             Controls.Add(btnReload);
             Controls.Add(dgvBookList);
             Name = "ImportBook";
@@ -201,6 +217,7 @@
             FormClosing += ImportBook_FormClosing;
             Load += ImportBook_Load;
             ((System.ComponentModel.ISupportInitialize)dgvBookList).EndInit();
+            flowLayoutPanel_Buttons.ResumeLayout(false);
             ResumeLayout(false);
             PerformLayout();
         }
@@ -219,5 +236,6 @@
         private Button btnScanBook;
         private Label lblSyncStatus;
         private Label lblNetStatus;
+        private FlowLayoutPanel flowLayoutPanel_Buttons;
     }
 }

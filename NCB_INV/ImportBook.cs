@@ -121,6 +121,17 @@ namespace NCB_INV
             dgvBookList.DataSource = freshData;
         }
 
+        private void ApplyPermissions()
+        {
+            bool isAdmin = CurrentSession.User.Role.Equals("Admin", StringComparison.OrdinalIgnoreCase);
+
+            btnImport.Visible = isAdmin;
+            btnDeleteBook.Visible = isAdmin;
+            btnModifyBook.Visible = true;
+            btnScanBook.Visible = true;
+            btnAddBook.Visible = true;
+        }
+
         private async void ImportBook_Load(object sender, EventArgs e)
         {
             Color primaryNavy = ColorTranslator.FromHtml("#2C3E50");
@@ -131,7 +142,7 @@ namespace NCB_INV
             dgvBookList.EnableHeadersVisualStyles = false;
             dgvBookList.ColumnHeadersDefaultCellStyle.BackColor = primaryNavy;
             dgvBookList.ColumnHeadersDefaultCellStyle.ForeColor = Color.White;
-
+            ApplyPermissions();
             RefreshBookList();
 
             await RunBackgroundSync();
