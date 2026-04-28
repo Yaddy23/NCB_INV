@@ -286,48 +286,6 @@ namespace NCB_INV
 
         // Tracks stock-in/release events, falling back to SQLite if the cloud is down.
 
-        public static async Task SyncOfflineData()
-        {
-            if (_database == null || !IsCloudAvailable()) return;
-
-            try
-            {
-                var localBooks = GetLocalBooks();
-                var bookCollection = _bookCollection ?? _database.GetCollection<Book>("Books");
-
-                foreach (var localBook in localBooks)
-                {
-                    var cloudBook = await bookCollection.Find(b => b.ISBN == localBook.ISBN).FirstOrDefaultAsync();
-
-                    if (cloudBook == null || localBook.LastModified > cloudBook.LastModified)
-                    {
-                        await bookCollection.ReplaceOneAsync(
-                            b => b.ISBN == localBook.ISBN,
-                            localBook,
-                            new ReplaceOptions { IsUpsert = true }
-                        );
-                    }
-                    else if (cloudBook.LastModified > localBook.LastModified)
-                    {
-                        SaveToSQLite(cloudBook, isSyncing: true);
-                    }
-                }
-
-                List<Transaction> pendingLogs = GetLocalTransactions();
-                if (pendingLogs.Count > 0)
-                {
-                    var transCollection = _database.GetCollection<Transaction>("Transactions");
-                    await transCollection.InsertManyAsync(pendingLogs);
-
-                    ClearLocalTransactions();
-                }
-            }
-            catch (Exception ex)
-            {
-                System.Diagnostics.Debug.WriteLine("Sync Error: " + ex.Message);
-            }
-        }
-
         private static void InitSQLite()
         {
             using var connection = new SqliteConnection(sqliteConn);
@@ -374,18 +332,45 @@ namespace NCB_INV
             try
             {
                 var bookCollection = _bookCollection ?? _database.GetCollection<Book>("Books");
-                using var conn = new SqliteConnection(sqliteConn);
-                conn.Open();
 
-                string getDirtyQuery = "SELECT * FROM OfflineBooks WHERE SyncRequired = 1";
-                using var cmd = new SqliteCommand(getDirtyQuery, conn);
-                using var reader = cmd.ExecuteReader();
+                await PushLocalChangesToCloud(bookCollection);
 
-                var dirtyBooks = new List<Book>();
-                while (reader.Read())
+                var cloudBooks = await bookCollection.Find(new BsonDocument()).ToListAsync();
+
+                using (var conn = new SqliteConnection(sqliteConn))
                 {
-                    dirtyBooks.Add(new Book(
-                        reader["ISBN"].ToString() ?? "",
+                    conn.Open();
+                    using var transaction = conn.BeginTransaction();
+
+                    foreach (var cBook in cloudBooks)
+                    {
+                        UpdateLocalFromCloudInternal(cBook, conn, transaction);
+                    }
+                    transaction.Commit();
+                }
+
+                System.Diagnostics.Debug.WriteLine($"Delta Sync: Completed successfully.");
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine("Delta Sync Error: " + ex.Message);
+            }
+        }
+
+        private static async Task PushLocalChangesToCloud(IMongoCollection<Book> bookCollection)
+        {
+            using var conn = new SqliteConnection(sqliteConn);
+            conn.Open();
+
+            // 1. Get ONLY changed items
+            string query = "SELECT * FROM OfflineBooks WHERE SyncRequired = 1";
+            using (var cmd = new SqliteCommand(query, conn))
+            using (var reader = await cmd.ExecuteReaderAsync())
+            {
+                while (await reader.ReadAsync())
+                {
+                    var book = new Book(
+                        reader["ISBN"].ToString()?.Trim() ?? "", // Trim ISBN
                         reader["Title"].ToString() ?? "",
                         reader["Edition"].ToString() ?? "",
                         reader["Year"].ToString() ?? "",
@@ -395,52 +380,49 @@ namespace NCB_INV
                         Convert.ToDecimal(reader["Price"]),
                         reader["Publisher"].ToString() ?? "",
                         Convert.ToDateTime(reader["LastModified"])
-                    ));
-                }
-                reader.Close();
+                    );
 
-                foreach (var book in dirtyBooks)
-                {
-                    await bookCollection.ReplaceOneAsync(b => b.ISBN == book.ISBN, book, new ReplaceOptions { IsUpsert = true });
+                    // 2. Use Upsert to force the update
+                    var result = await bookCollection.ReplaceOneAsync(
+                        b => b.ISBN == book.ISBN,
+                        book,
+                        new ReplaceOptions { IsUpsert = true }
+                    );
 
-                    using var updateCmd = new SqliteCommand(
-                        "UPDATE OfflineBooks SET SyncRequired = 0 WHERE ISBN = @isbn AND LastModified <= @mod", conn);
-                    updateCmd.Parameters.AddWithValue("@isbn", book.ISBN);
-                    updateCmd.Parameters.AddWithValue("@mod", book.LastModified);
-                    updateCmd.ExecuteNonQuery();
-                }
-
-                var localMaxDate = GetLocalLastModifiedMax();
-
-                var cloudFilter = Builders<Book>.Filter.Gt(b => b.LastModified, localMaxDate);
-                var cloudBooks = await bookCollection.Find(cloudFilter).ToListAsync();
-
-                using (var transaction = conn.BeginTransaction())
-                {
-                    foreach (var cBook in cloudBooks)
+                    // 3. ONLY mark as synced if MongoDB confirmed the update/upsert
+                    if (result.IsAcknowledged)
                     {
-                        var localVersion = GetLocalBookByISBN(cBook.ISBN);
-
-                        if (localVersion == null || cBook.LastModified > localVersion.LastModified)
-                        {
-                            SaveToSQLite(cBook, isSyncing: true);
-                        }
+                        using var updateCmd = new SqliteCommand(
+                            "UPDATE OfflineBooks SET SyncRequired = 0 WHERE ISBN = @isbn", conn);
+                        updateCmd.Parameters.AddWithValue("@isbn", book.ISBN);
+                        updateCmd.ExecuteNonQuery();
                     }
-                    transaction.Commit();
                 }
-
-                System.Diagnostics.Debug.WriteLine($"Delta Sync: Pushed {dirtyBooks.Count}, Resolved & Pulled {cloudBooks.Count}");
             }
-            catch (Exception ex) { System.Diagnostics.Debug.WriteLine("Delta Sync Error: " + ex.Message); }
         }
 
-        private static DateTime GetLocalLastModifiedMax()
+        private static void UpdateLocalFromCloudInternal(Book book, SqliteConnection conn, SqliteTransaction trans)
         {
-            using var conn = new SqliteConnection(sqliteConn);
-            conn.Open();
-            using var cmd = new SqliteCommand("SELECT MAX(LastModified) FROM OfflineBooks", conn);
-            var result = cmd.ExecuteScalar();
-            return result == DBNull.Value ? DateTime.MinValue : Convert.ToDateTime(result);
+            var cmd = conn.CreateCommand();
+            cmd.Transaction = trans;
+            cmd.CommandText = @"
+            INSERT INTO OfflineBooks (ISBN, Title, Edition, Year, Author, Bind, Qty, Price, Publisher, LastModified, SyncRequired)
+            VALUES ($isbn, $title, $edition, $year, $author, $bind, $qty, $price, $publisher, $date, 0)
+            ON CONFLICT(ISBN) DO UPDATE SET 
+            Title=$title, Qty=$qty, Price=$price, LastModified=$date, SyncRequired=0 
+            WHERE LastModified < $date;";
+
+            cmd.Parameters.AddWithValue("$isbn", book.ISBN);
+            cmd.Parameters.AddWithValue("$title", book.Title);
+            cmd.Parameters.AddWithValue("$edition", book.Edition);
+            cmd.Parameters.AddWithValue("$year", book.Year);
+            cmd.Parameters.AddWithValue("$author", book.Author);
+            cmd.Parameters.AddWithValue("$bind", book.Bind);
+            cmd.Parameters.AddWithValue("$qty", book.Qty);
+            cmd.Parameters.AddWithValue("$price", book.Price);
+            cmd.Parameters.AddWithValue("$publisher", book.Publisher);
+            cmd.Parameters.AddWithValue("$date", book.LastModified);
+            cmd.ExecuteNonQuery();
         }
 
         // Manages the connection state and pushes local cached data to MongoDB.
@@ -456,6 +438,7 @@ namespace NCB_INV
                 try
                 {
                     cloudList = _bookCollection.Find(new BsonDocument()).ToList();
+
                 }
                 catch { /* Fallback to offline only if Mongo fails */ }
             }
@@ -504,19 +487,31 @@ namespace NCB_INV
             {
                 while (reader.Read())
                 {
-                    int lastModIndex = reader.GetOrdinal("LastModified");
+                    int qtyCol = reader.GetOrdinal("Qty");
+                    int priceCol = reader.GetOrdinal("Price");
+
+                    DateTime lastMod = DateTime.MinValue;
+                    try
+                    {
+                        int modIndex = reader.GetOrdinal("LastModified");
+                        if (!reader.IsDBNull(modIndex))
+                        {
+                            lastMod = Convert.ToDateTime(reader[modIndex]);
+                        }
+                    }
+                    catch { /* Column missing in this specific .db file */ }
 
                     books.Add(new Book(
-                        reader["ISBN"]?.ToString() ?? string.Empty,
-                        reader["Title"]?.ToString() ?? string.Empty,
-                        reader["Edition"]?.ToString() ?? string.Empty,
-                        reader["Year"]?.ToString() ?? string.Empty,
-                        reader["Author"]?.ToString() ?? string.Empty,
-                        reader["Bind"]?.ToString() ?? string.Empty,
-                        reader["Qty"] == DBNull.Value ? 0 : Convert.ToInt32(reader["Qty"]),
-                        reader["Price"] == DBNull.Value ? 0m : Convert.ToDecimal(reader["Price"]),
-                        reader["Publisher"]?.ToString() ?? string.Empty,
-                        reader.IsDBNull(lastModIndex) ? DateTime.MinValue : reader.GetDateTime(lastModIndex)
+                        reader["ISBN"]?.ToString() ?? "",
+                        reader["Title"]?.ToString() ?? "",
+                        reader["Edition"]?.ToString() ?? "",
+                        reader["Year"]?.ToString() ?? "",
+                        reader["Author"]?.ToString() ?? "",
+                        reader["Bind"]?.ToString() ?? "",
+                        reader.IsDBNull(qtyCol) ? 0 : Convert.ToInt32(reader[qtyCol]),
+                        reader.IsDBNull(priceCol) ? 0m : Convert.ToDecimal(reader[priceCol]),
+                        reader["Publisher"]?.ToString() ?? "",
+                        lastMod
                     ));
                 }
             }
@@ -530,19 +525,30 @@ namespace NCB_INV
 
         public static Book? GetLocalBookByISBN(string isbn)
         {
-            if (string.IsNullOrWhiteSpace(isbn))
-                return null;
+            if (string.IsNullOrWhiteSpace(isbn)) return null;
 
-            var books = GetLocalBooks();
-            return books?.Find(b => string.Equals(b.ISBN, isbn, StringComparison.OrdinalIgnoreCase));
-        }
-
-        private static void ClearLocalTransactions()
-        {
             using var conn = new SqliteConnection(sqliteConn);
             conn.Open();
-            using var cmd = new SqliteCommand("DELETE FROM OfflineTransactions", conn);
-            cmd.ExecuteNonQuery();
+            using var cmd = new SqliteCommand("SELECT * FROM OfflineBooks WHERE ISBN = @isbn LIMIT 1", conn);
+            cmd.Parameters.AddWithValue("@isbn", isbn.Trim());
+
+            using var reader = cmd.ExecuteReader();
+            if (reader.Read())
+            {
+                return new Book(
+                    reader["ISBN"].ToString() ?? "",
+                    reader["Title"].ToString() ?? "",
+                    reader["Edition"].ToString() ?? "",
+                    reader["Year"].ToString() ?? "",
+                    reader["Author"].ToString() ?? "",
+                    reader["Bind"].ToString() ?? "",
+                    Convert.ToInt32(reader["Qty"]),
+                    Convert.ToDecimal(reader["Price"]),
+                    reader["Publisher"].ToString() ?? "",
+                    reader["LastModified"] == DBNull.Value ? DateTime.MinValue : Convert.ToDateTime(reader["LastModified"])
+                );
+            }
+            return null;
         }
 
         // Retrieves and merges datasets from both local and cloud databases.
@@ -592,8 +598,8 @@ namespace NCB_INV
 
             var cmd = connection.CreateCommand();
             cmd.CommandText = @"INSERT OR REPLACE INTO OfflineBooks 
-            (ISBN, Title, Edition,Year, Author, Bind, Price, Qty, Publisher, SyncRequired) 
-            VALUES ($isbn, $title, $edition, $year, $author, $bind, $price, $qty, $publisher, 1)";
+            (ISBN, Title, Edition,Year, Author, Bind, Price, Qty, Publisher, SyncRequired, LastModified) 
+            VALUES ($isbn, $title, $edition, $year, $author, $bind, $price, $qty, $publisher, 1, $lastMod)";
 
             cmd.Parameters.Add("$isbn", SqliteType.Text);
             cmd.Parameters.Add("$title", SqliteType.Text);
@@ -604,6 +610,7 @@ namespace NCB_INV
             cmd.Parameters.Add("$price", SqliteType.Real);
             cmd.Parameters.Add("$qty", SqliteType.Integer);
             cmd.Parameters.Add("$publisher", SqliteType.Text);
+            cmd.Parameters.Add("$lastMod", SqliteType.Text);
 
             foreach (var b in books)
             {
@@ -616,6 +623,7 @@ namespace NCB_INV
                 cmd.Parameters["$price"].Value = b.Price;
                 cmd.Parameters["$qty"].Value = b.Qty;
                 cmd.Parameters["$publisher"].Value = b.Publisher;
+                cmd.Parameters["$lastMod"].Value = b.LastModified.ToString("yyyy-MM-dd HH:mm:ss");
                 cmd.ExecuteNonQuery();
             }
             transaction.Commit();

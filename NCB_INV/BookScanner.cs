@@ -8,6 +8,7 @@ using System.Drawing;
 using System.Windows.Forms;
 using ExcelDataReader;
 using System.Data.Common;
+using System.Threading.Tasks;
 
 namespace NCB_INV
 {
@@ -70,7 +71,7 @@ namespace NCB_INV
             ProcessExcelBulkUpdate(false);// release
         }
 
-        private static void ProcessExcelBulkUpdate(bool isStockIn)
+        private static async Task ProcessExcelBulkUpdate(bool isStockIn)
         {
             OpenFileDialog ofd = new() { Filter = "Excel Files|*.xlsx;*.xls" };
 
@@ -94,9 +95,13 @@ namespace NCB_INV
                         var table = result.Tables[0];
 
                         var groupedData = table.AsEnumerable()
-                            .Skip(1)
-                            .Where(r => !string.IsNullOrEmpty(r[0]?.ToString()))
-                            .GroupBy(r => r[0]?.ToString()?.Trim() ?? string.Empty);
+                        .Skip(1)
+                        .Where(r => r[0] != DBNull.Value && !string.IsNullOrWhiteSpace(r[0].ToString()))
+                        .GroupBy(r => {
+                            string raw = r[0].ToString().Trim();
+                            if (raw.EndsWith(".0")) raw = raw.Substring(0, raw.Length - 2);
+                            return raw;
+                        });
 
                         foreach (var group in groupedData)
                         {
@@ -110,6 +115,7 @@ namespace NCB_INV
                                 int totalChange = isStockIn ? countInExcel : -countInExcel;
 
                                 book.Qty += totalChange;
+                                book.LastModified = DateTime.Now;
                                 bulkList.Add(book);
                                 updatedCount += countInExcel;
 
@@ -138,6 +144,7 @@ namespace NCB_INV
 
                     if (updatedCount > 0)
                     {
+                        await DBConnection.ExecuteDeltaSync();
                         string displayName = DBConnection.CurrentSession.User?.DisplayName ?? "Warehouse User";
 
                         DBConnection.LogTransaction(

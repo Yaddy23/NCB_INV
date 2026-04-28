@@ -66,7 +66,7 @@ namespace NCB_INV
         private void SetupAutoSync()
         {
             syncTimer = new System.Windows.Forms.Timer();
-            syncTimer.Interval = 300000;
+            syncTimer.Interval = 30000;
             syncTimer.Tick += async (s, e) => await RunBackgroundSync();
             syncTimer.Start();
         }
