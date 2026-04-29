@@ -34,7 +34,6 @@ namespace NCB_INV
         public static (List<Book> Results, string Suggestion) FuzzySearch(string query, List<Book> source)
         {
             if (string.IsNullOrWhiteSpace(query)) return (new List<Book>(), null);
-
             query = query.ToLower().Trim();
 
             var matches = source.Where(b =>
@@ -45,13 +44,26 @@ namespace NCB_INV
 
             if (matches.Any()) return (matches, null);
 
-            var closestMatch = source
-                .Select(b => new { Book = b, Distance = GetEditDistance(query, b.Title.ToLower()) })
-                .Where(x => x.Distance <= 3)
-                .OrderBy(x => x.Distance)
+            var bestSuggestion = source
+                .Select(b => {
+                    var words = b.Title.ToLower().Split(new[] { ' ', '-', '.', ',' }, StringSplitOptions.RemoveEmptyEntries);
+
+                    double bestWordSimilarity = 0;
+                    foreach (var word in words)
+                    {
+                        int distance = GetEditDistance(query, word);
+                        double maxLength = Math.Max(query.Length, word.Length);
+                        double similarity = 1.0 - (distance / maxLength);
+                        if (similarity > bestWordSimilarity) bestWordSimilarity = similarity;
+                    }
+
+                    return new { Book = b, MaxSimilarity = bestWordSimilarity };
+                })
+                .Where(x => x.MaxSimilarity >= 0.70) 
+                .OrderByDescending(x => x.MaxSimilarity)
                 .FirstOrDefault();
 
-            return (new List<Book>(), closestMatch?.Book.Title);
+            return (new List<Book>(), bestSuggestion?.Book.Title);
         }
     }
 

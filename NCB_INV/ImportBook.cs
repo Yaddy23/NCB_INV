@@ -398,8 +398,11 @@ namespace NCB_INV
             }
             else if (!string.IsNullOrEmpty(suggestion))
             {
-                lblSuggestion.Text = $"Did you mean: {suggestion}?";
+                string cleanSuggestion = suggestion.Replace("\r", "").Replace("\n", " ");
+
+                lblSuggestion.Text = $"Did you mean: {cleanSuggestion}?";
                 lblSuggestion.Visible = true;
+                lblSuggestion.MaximumSize = new Size(0, 0);
                 dgvBookList.DataSource = null; 
             }
             else
@@ -411,7 +414,12 @@ namespace NCB_INV
 
         private void lblSuggestion_Click(object sender, EventArgs e)
         {
-            txtSearch.Text = lblSuggestion.Text.Replace("Did you mean: ", "").Replace("?", "");
+            string suggestedWord = lblSuggestion.Text
+            .Replace("Did you mean: ", "")
+            .Replace("?", "")
+            .Trim();
+
+            txtSearch.Text = suggestedWord;
         }
     }
 }
