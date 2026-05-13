@@ -279,6 +279,18 @@ namespace NCB_INV
                 );
                 CREATE INDEX IF NOT EXISTS idx_title ON OfflineBooks(Title);";
             command.ExecuteNonQuery();
+
+            var command1 = connection.CreateCommand();
+            command1.CommandText = @"
+                CREATE TABLE IF NOT EXISTS UserCache (
+                    Username TEXT PRIMARY KEY,
+                    DisplayName TEXT,
+                    Role TEXT,
+                    PasswordHash TEXT,
+                    LastSync DATETIME
+                );";
+            command1.ExecuteNonQuery();
+
         }
 
         public static bool IsCloudAvailable()
@@ -749,7 +761,8 @@ namespace NCB_INV
 
                     if (user != null)
                     {
-                        UpdateLocalUserCache(user.Username, user.DisplayName, hashedpass);
+
+                        UpdateLocalUserCache(user.Username, user.DisplayName, user.Role, hashedpass);
                         return user;
                     }
                 }
@@ -763,7 +776,7 @@ namespace NCB_INV
         {
             using var conn = new SqliteConnection(sqliteConn);
             conn.Open();
-            string query = "SELECT Username, DisplayName FROM UserCache WHERE Username = @user AND PasswordHash = @hash";
+            string query = "SELECT Username, DisplayName, Role FROM UserCache WHERE Username = @user AND PasswordHash = @hash";
             using var cmd = new SqliteCommand(query, conn);
             cmd.Parameters.AddWithValue("@user", username);
             cmd.Parameters.AddWithValue("@hash", hashedPass);
@@ -775,35 +788,26 @@ namespace NCB_INV
                 {
                     Username = reader["Username"]?.ToString() ?? string.Empty,
                     DisplayName = reader["DisplayName"]?.ToString() ?? string.Empty,
+                    Role = reader["Role"]?.ToString() ?? string.Empty,
                     Password = hashedPass
                 };
             }
             return null;
         }
 
-        private static void UpdateLocalUserCache(string user, string display, string hash)
+        public static void UpdateLocalUserCache(string user, string display, string role, string hash)
         {
             using var conn = new SqliteConnection(sqliteConn);
             conn.Open();
 
-            string createTableQuery = @"
-            CREATE TABLE IF NOT EXISTS UserCache (
-            Username TEXT PRIMARY KEY,
-            DisplayName TEXT,
-            PasswordHash TEXT,
-            LastSync DATETIME
-            );";
-
-            using var createCmd = new SqliteCommand(createTableQuery, conn);
-            createCmd.ExecuteNonQuery();
-
             string upsertQuery = @"
-            INSERT OR REPLACE INTO UserCache (Username, DisplayName, PasswordHash, LastSync) 
-            VALUES (@user, @display, @hash, @now)";
+            INSERT OR REPLACE INTO UserCache (Username, DisplayName, Role, PasswordHash, LastSync) 
+            VALUES (@user, @display, @role, @hash, @now)";
 
             using var cmd = new SqliteCommand(upsertQuery, conn);
             cmd.Parameters.AddWithValue("@user", user);
             cmd.Parameters.AddWithValue("@display", display);
+            cmd.Parameters.AddWithValue("@role", role ?? "User");
             cmd.Parameters.AddWithValue("@hash", hash);
             cmd.Parameters.AddWithValue("@now", DateTime.Now);
             cmd.ExecuteNonQuery();

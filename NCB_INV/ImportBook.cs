@@ -124,7 +124,9 @@ namespace NCB_INV
 
         private void ApplyPermissions()
         {
-            bool isAdmin = CurrentSession.User.Role.Equals("Admin", StringComparison.OrdinalIgnoreCase);
+            MessageBox.Show($"DEBUG: Role is '{CurrentSession.User?.Role ?? "NULL"}'");
+            bool isAdmin = CurrentSession.User.Role.Contains("Admin", StringComparison.OrdinalIgnoreCase);
+            
 
             btnImport.Visible = isAdmin;
             btnDeleteBook.Visible = isAdmin;

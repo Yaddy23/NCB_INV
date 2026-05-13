@@ -42,8 +42,8 @@ namespace NCB_INV
                     DBConnection.SaveBook(currentbook);
 
                     lblTitle.Text = $"Title: {currentbook.Title}";
-                    lblOldQty.Text = $"Previous: {oldQty}";
-                    lblNewQty.Text = $"New Total: {currentbook.Qty}";
+                    lblOldQty.Text = $"Previous Qty: {oldQty}";
+                    lblNewQty.Text = $"New Total Qty: {currentbook.Qty}";
                     lblNewQty.ForeColor = Color.Green;
                     DBConnection.LogTransaction(txtBarcodeScanner.Text, lblTitle.Text, oldQty, currentbook.Qty.ToString(), "Initial Stock Entry", currentuser);
                 }

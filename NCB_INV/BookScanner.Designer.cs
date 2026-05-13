@@ -39,7 +39,7 @@
             // 
             // btnClose
             // 
-            btnClose.Location = new Point(579, 193);
+            btnClose.Location = new Point(574, 213);
             btnClose.Name = "btnClose";
             btnClose.Size = new Size(74, 53);
             btnClose.TabIndex = 1;
@@ -68,6 +68,7 @@
             // 
             // lblTitle
             // 
+            lblTitle.AutoEllipsis = true;
             lblTitle.AutoSize = true;
             lblTitle.Font = new Font("Segoe UI", 13.8F, FontStyle.Regular, GraphicsUnit.Point, 0);
             lblTitle.Location = new Point(12, 71);
@@ -80,7 +81,7 @@
             // 
             lblOldQty.AutoSize = true;
             lblOldQty.Font = new Font("Segoe UI", 13.8F, FontStyle.Regular, GraphicsUnit.Point, 0);
-            lblOldQty.Location = new Point(12, 119);
+            lblOldQty.Location = new Point(12, 185);
             lblOldQty.Name = "lblOldQty";
             lblOldQty.Size = new Size(19, 31);
             lblOldQty.TabIndex = 7;
@@ -90,7 +91,7 @@
             // 
             lblNewQty.AutoSize = true;
             lblNewQty.Font = new Font("Segoe UI", 13.8F, FontStyle.Regular, GraphicsUnit.Point, 0);
-            lblNewQty.Location = new Point(12, 165);
+            lblNewQty.Location = new Point(12, 231);
             lblNewQty.Name = "lblNewQty";
             lblNewQty.Size = new Size(19, 31);
             lblNewQty.TabIndex = 8;
@@ -110,7 +111,7 @@
             // 
             AutoScaleDimensions = new SizeF(8F, 20F);
             AutoScaleMode = AutoScaleMode.Font;
-            ClientSize = new Size(660, 258);
+            ClientSize = new Size(660, 278);
             Controls.Add(btnOut);
             Controls.Add(lblNewQty);
             Controls.Add(lblOldQty);
