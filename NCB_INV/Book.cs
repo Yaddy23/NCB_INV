@@ -10,6 +10,7 @@ namespace NCB_INV
     [BsonIgnoreExtraElements]
     public class Book
     {
+        public string Subject { get; set; }
         public string ISBN { get; set; }
         public string Title { get; set; }
         public string Edition { get; set; }
@@ -22,9 +23,10 @@ namespace NCB_INV
 
         public DateTime LastModified { get; set; }
 
-        public Book(string isbn, string title, string edition, string year,
+        public Book(string subject,string isbn, string title, string edition, string year,
                     string author, string bind, int qty, decimal price, string publisher,DateTime lastModified)
         {
+            Subject = subject;
             ISBN = isbn;
             Title = title;
             Edition = edition;

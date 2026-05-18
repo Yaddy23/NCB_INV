@@ -49,11 +49,13 @@
             btnAddBook = new Button();
             btnCancel = new Button();
             lblStatus = new Label();
+            label10 = new Label();
+            txtSubject = new TextBox();
             SuspendLayout();
             // 
             // txtISBN
             // 
-            txtISBN.Location = new Point(141, 12);
+            txtISBN.Location = new Point(141, 50);
             txtISBN.Name = "txtISBN";
             txtISBN.Size = new Size(228, 27);
             txtISBN.TabIndex = 0;
@@ -61,56 +63,56 @@
             // 
             // txtTitle
             // 
-            txtTitle.Location = new Point(141, 45);
+            txtTitle.Location = new Point(141, 83);
             txtTitle.Name = "txtTitle";
             txtTitle.Size = new Size(228, 27);
             txtTitle.TabIndex = 1;
             // 
             // txtEdition
             // 
-            txtEdition.Location = new Point(141, 78);
+            txtEdition.Location = new Point(141, 116);
             txtEdition.Name = "txtEdition";
             txtEdition.Size = new Size(228, 27);
             txtEdition.TabIndex = 2;
             // 
             // txtYear
             // 
-            txtYear.Location = new Point(141, 111);
+            txtYear.Location = new Point(141, 149);
             txtYear.Name = "txtYear";
             txtYear.Size = new Size(228, 27);
             txtYear.TabIndex = 3;
             // 
             // txtAuthor
             // 
-            txtAuthor.Location = new Point(141, 144);
+            txtAuthor.Location = new Point(141, 182);
             txtAuthor.Name = "txtAuthor";
             txtAuthor.Size = new Size(228, 27);
             txtAuthor.TabIndex = 4;
             // 
             // txtBind
             // 
-            txtBind.Location = new Point(141, 177);
+            txtBind.Location = new Point(141, 215);
             txtBind.Name = "txtBind";
             txtBind.Size = new Size(228, 27);
             txtBind.TabIndex = 5;
             // 
             // txtQty
             // 
-            txtQty.Location = new Point(141, 210);
+            txtQty.Location = new Point(141, 248);
             txtQty.Name = "txtQty";
             txtQty.Size = new Size(228, 27);
             txtQty.TabIndex = 6;
             // 
             // txtPrice
             // 
-            txtPrice.Location = new Point(141, 243);
+            txtPrice.Location = new Point(141, 281);
             txtPrice.Name = "txtPrice";
             txtPrice.Size = new Size(228, 27);
             txtPrice.TabIndex = 7;
             // 
             // txtPublisher
             // 
-            txtPublisher.Location = new Point(141, 276);
+            txtPublisher.Location = new Point(141, 314);
             txtPublisher.Name = "txtPublisher";
             txtPublisher.Size = new Size(228, 27);
             txtPublisher.TabIndex = 8;
@@ -118,7 +120,7 @@
             // label1
             // 
             label1.AutoSize = true;
-            label1.Location = new Point(25, 15);
+            label1.Location = new Point(25, 53);
             label1.Name = "label1";
             label1.Size = new Size(44, 20);
             label1.TabIndex = 9;
@@ -127,7 +129,7 @@
             // label2
             // 
             label2.AutoSize = true;
-            label2.Location = new Point(25, 48);
+            label2.Location = new Point(25, 86);
             label2.Name = "label2";
             label2.Size = new Size(47, 20);
             label2.TabIndex = 11;
@@ -136,7 +138,7 @@
             // label3
             // 
             label3.AutoSize = true;
-            label3.Location = new Point(25, 81);
+            label3.Location = new Point(25, 119);
             label3.Name = "label3";
             label3.Size = new Size(69, 20);
             label3.TabIndex = 13;
@@ -145,7 +147,7 @@
             // label4
             // 
             label4.AutoSize = true;
-            label4.Location = new Point(25, 114);
+            label4.Location = new Point(25, 152);
             label4.Name = "label4";
             label4.Size = new Size(47, 20);
             label4.TabIndex = 15;
@@ -154,7 +156,7 @@
             // label5
             // 
             label5.AutoSize = true;
-            label5.Location = new Point(25, 147);
+            label5.Location = new Point(25, 185);
             label5.Name = "label5";
             label5.Size = new Size(71, 20);
             label5.TabIndex = 17;
@@ -163,7 +165,7 @@
             // label6
             // 
             label6.AutoSize = true;
-            label6.Location = new Point(25, 180);
+            label6.Location = new Point(25, 218);
             label6.Name = "label6";
             label6.Size = new Size(47, 20);
             label6.TabIndex = 19;
@@ -172,7 +174,7 @@
             // label7
             // 
             label7.AutoSize = true;
-            label7.Location = new Point(25, 213);
+            label7.Location = new Point(25, 251);
             label7.Name = "label7";
             label7.Size = new Size(38, 20);
             label7.TabIndex = 21;
@@ -181,7 +183,7 @@
             // label8
             // 
             label8.AutoSize = true;
-            label8.Location = new Point(25, 246);
+            label8.Location = new Point(25, 284);
             label8.Name = "label8";
             label8.Size = new Size(50, 20);
             label8.TabIndex = 23;
@@ -190,7 +192,7 @@
             // label9
             // 
             label9.AutoSize = true;
-            label9.Location = new Point(25, 279);
+            label9.Location = new Point(25, 317);
             label9.Name = "label9";
             label9.Size = new Size(86, 20);
             label9.TabIndex = 25;
@@ -218,17 +220,35 @@
             // lblStatus
             // 
             lblStatus.AutoSize = true;
-            lblStatus.Location = new Point(25, 329);
+            lblStatus.Location = new Point(25, 369);
             lblStatus.Name = "lblStatus";
             lblStatus.Size = new Size(62, 20);
             lblStatus.TabIndex = 28;
             lblStatus.Text = "STATUS:";
             // 
+            // label10
+            // 
+            label10.AutoSize = true;
+            label10.Location = new Point(25, 20);
+            label10.Name = "label10";
+            label10.Size = new Size(69, 20);
+            label10.TabIndex = 30;
+            label10.Text = "SUBJECT:";
+            // 
+            // txtSubject
+            // 
+            txtSubject.Location = new Point(141, 17);
+            txtSubject.Name = "txtSubject";
+            txtSubject.Size = new Size(228, 27);
+            txtSubject.TabIndex = 29;
+            // 
             // BookEditorForm
             // 
             AutoScaleDimensions = new SizeF(8F, 20F);
             AutoScaleMode = AutoScaleMode.Font;
-            ClientSize = new Size(511, 358);
+            ClientSize = new Size(511, 393);
+            Controls.Add(label10);
+            Controls.Add(txtSubject);
             Controls.Add(lblStatus);
             Controls.Add(btnCancel);
             Controls.Add(btnAddBook);
@@ -280,5 +300,7 @@
         private Button btnAddBook;
         private Button btnCancel;
         private Label lblStatus;
+        private Label label10;
+        private TextBox txtSubject;
     }
 }

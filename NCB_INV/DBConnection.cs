@@ -71,6 +71,7 @@ namespace NCB_INV
                     var info = firstItem?["volumeInfo"];
                     if (info == null) return null;
 
+                    string subject = info["categories"]?.ToString() ?? "Unknown";
                     string title = info["title"]?.ToString() ?? "Unknown";
                     string publishedYear = info["publishedDate"]?.ToString()?.Split('-')[0] ?? "N/A";
                     string authors = info["authors"] is JArray authorsArray
@@ -79,6 +80,7 @@ namespace NCB_INV
                     string publisher = info["publisher"]?.ToString() ?? "Unknown";
 
                     return new Book(
+                        subject,
                         cleanIsbn,
                         title,
                         "1st",
@@ -119,6 +121,9 @@ namespace NCB_INV
                     var info = json[key];
 
                     return new Book(
+                        info?["subjects"] is JArray subjectsArray && subjectsArray.Count > 0
+                            ? string.Join(", ", subjectsArray.Select(s => s?["name"]?.ToString() ?? "Unknown"))
+                            : "Unknown",
                         cleanIsbn,
                         info?["title"]?.ToString() ?? "Unknown",
                         "1st",
@@ -265,6 +270,7 @@ namespace NCB_INV
             var command = connection.CreateCommand();
             command.CommandText = @"
                 CREATE TABLE IF NOT EXISTS OfflineBooks (
+                    Subject TEXT,
                     ISBN TEXT PRIMARY KEY,
                     Title TEXT,
                     Edition TEXT,
@@ -353,6 +359,7 @@ namespace NCB_INV
                 while (await reader.ReadAsync())
                 {
                     var book = new Book(
+                        reader["Subject"].ToString() ?? "",
                         reader["ISBN"].ToString()?.Trim() ?? "", // Trim ISBN
                         reader["Title"].ToString() ?? "",
                         reader["Edition"].ToString() ?? "",
@@ -389,12 +396,13 @@ namespace NCB_INV
             var cmd = conn.CreateCommand();
             cmd.Transaction = trans;
             cmd.CommandText = @"
-            INSERT INTO OfflineBooks (ISBN, Title, Edition, Year, Author, Bind, Qty, Price, Publisher, LastModified, SyncRequired)
-            VALUES ($isbn, $title, $edition, $year, $author, $bind, $qty, $price, $publisher, $date, 0)
+            INSERT INTO OfflineBooks (Subject, ISBN, Title, Edition, Year, Author, Bind, Qty, Price, Publisher, LastModified, SyncRequired)
+            VALUES ($subject, $isbn, $title, $edition, $year, $author, $bind, $qty, $price, $publisher, $date, 0)
             ON CONFLICT(ISBN) DO UPDATE SET 
-            Title=$title, Qty=$qty, Price=$price, LastModified=$date, SyncRequired=0 
+            Subject=$subject, Title=$title, Qty=$qty, Price=$price, LastModified=$date, SyncRequired=0 
             WHERE LastModified < $date;";
-
+            
+            cmd.Parameters.AddWithValue("$subject", book.Subject);
             cmd.Parameters.AddWithValue("$isbn", book.ISBN);
             cmd.Parameters.AddWithValue("$title", book.Title);
             cmd.Parameters.AddWithValue("$edition", book.Edition);
@@ -485,6 +493,7 @@ namespace NCB_INV
                     catch { /* Column missing in this specific .db file */ }
 
                     books.Add(new Book(
+                        reader["Subject"]?.ToString() ?? "",
                         reader["ISBN"]?.ToString() ?? "",
                         reader["Title"]?.ToString() ?? "",
                         reader["Edition"]?.ToString() ?? "",
@@ -519,6 +528,7 @@ namespace NCB_INV
             if (reader.Read())
             {
                 return new Book(
+                    reader["Subject"].ToString() ?? "",
                     reader["ISBN"].ToString() ?? "",
                     reader["Title"].ToString() ?? "",
                     reader["Edition"].ToString() ?? "",
@@ -551,12 +561,13 @@ namespace NCB_INV
             DateTime modifiedDate = isSyncing ? book.LastModified : DateTime.UtcNow;
 
             cmd.CommandText = @"
-            INSERT INTO OfflineBooks (ISBN, Title, Edition, Year, Author, Bind, Qty, Price, Publisher, LastModified, SyncRequired)
-            VALUES ($isbn, $title, $edition, $year, $author, $bind, $qty, $price, $publisher, $date, $sync)
+            INSERT INTO OfflineBooks (Subject, ISBN, Title, Edition, Year, Author, Bind, Qty, Price, Publisher, LastModified, SyncRequired)
+            VALUES ($subject, $isbn, $title, $edition, $year, $author, $bind, $qty, $price, $publisher, $date, $sync)
             ON CONFLICT(ISBN) DO UPDATE SET 
-            Title=$title, Edition=$edition, Year=$year, Author=$author, Bind=$bind, 
+            Subject=$subject, Title=$title, Edition=$edition, Year=$year, Author=$author, Bind=$bind, 
             Price=$price, Publisher=$publisher, Qty=$qty, LastModified=$date, SyncRequired=$sync;";
-
+            
+            cmd.Parameters.AddWithValue("$subject", book.Subject);
             cmd.Parameters.AddWithValue("$isbn", book.ISBN);
             cmd.Parameters.AddWithValue("$title", book.Title);
             cmd.Parameters.AddWithValue("$edition", book.Edition);
@@ -581,9 +592,10 @@ namespace NCB_INV
 
             var cmd = connection.CreateCommand();
             cmd.CommandText = @"INSERT OR REPLACE INTO OfflineBooks 
-            (ISBN, Title, Edition,Year, Author, Bind, Price, Qty, Publisher, SyncRequired, LastModified) 
-            VALUES ($isbn, $title, $edition, $year, $author, $bind, $price, $qty, $publisher, 1, $lastMod)";
+            (Subject, ISBN, Title, Edition,Year, Author, Bind, Price, Qty, Publisher, SyncRequired, LastModified) 
+            VALUES ($subject, $isbn, $title, $edition, $year, $author, $bind, $price, $qty, $publisher, 1, $lastMod)";
 
+            cmd.Parameters.Add("$subject", SqliteType.Text);
             cmd.Parameters.Add("$isbn", SqliteType.Text);
             cmd.Parameters.Add("$title", SqliteType.Text);
             cmd.Parameters.Add("$edition", SqliteType.Text);
@@ -597,6 +609,7 @@ namespace NCB_INV
 
             foreach (var b in books)
             {
+                cmd.Parameters["$subject"].Value = b.Subject;
                 cmd.Parameters["$isbn"].Value = b.ISBN;
                 cmd.Parameters["$title"].Value = b.Title;
                 cmd.Parameters["$edition"].Value = b.Edition;
@@ -658,6 +671,7 @@ namespace NCB_INV
                     var updateModel = new UpdateOneModel<Book>(
                         filter: Builders<Book>.Filter.Eq(b => b.ISBN, book.ISBN),
                         update: Builders<Book>.Update
+                            .Set(b => b.Subject, book.Subject)
                             .Set(b => b.Title, book.Title)
                             .Set(b => b.Year, book.Year)
                             .Set(b => b.Author, book.Author)
@@ -712,6 +726,7 @@ namespace NCB_INV
         private static DataTable ToDataTable(List<Book> books)
         {
             DataTable dt = new();
+            dt.Columns.Add("Subject");
             dt.Columns.Add("ISBN");
             dt.Columns.Add("Title");
             dt.Columns.Add("Edition");
@@ -724,7 +739,7 @@ namespace NCB_INV
 
             foreach (var b in books)
             {
-                dt.Rows.Add(b.ISBN, b.Title, b.Edition, b.Year, b.Author, b.Bind, b.Qty, b.Price, b.Publisher);
+                dt.Rows.Add(b.Subject, b.ISBN, b.Title, b.Edition, b.Year, b.Author, b.Bind, b.Qty, b.Price, b.Publisher);
             }
             return dt;
         }

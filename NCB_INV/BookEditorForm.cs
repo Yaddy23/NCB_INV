@@ -43,6 +43,7 @@ namespace NCB_INV
 
         private void PopulateFields()
         {
+            txtSubject.Text = BookData?.Subject;
             txtISBN.Text = BookData?.ISBN;
             txtTitle.Text = BookData?.Title;
             txtEdition.Text = BookData?.Edition;
@@ -69,6 +70,7 @@ namespace NCB_INV
 
             string currentuser = DBConnection.CurrentSession.User?.Username ?? "Unknown User";
             BookData = new Book(
+                txtSubject.Text,
                 txtISBN.Text,
                 txtTitle.Text,
                 txtEdition.Text,
@@ -104,6 +106,7 @@ namespace NCB_INV
 
                         if (foundBook != null)
                         {
+                            txtSubject.Text = foundBook.Subject;
                             txtTitle.Text = foundBook.Title;
                             txtEdition.Text = foundBook.Edition;
                             txtYear.Text = foundBook.Year;

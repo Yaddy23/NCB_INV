@@ -124,7 +124,6 @@ namespace NCB_INV
 
         private void ApplyPermissions()
         {
-            MessageBox.Show($"DEBUG: Role is '{CurrentSession.User?.Role ?? "NULL"}'");
             bool isAdmin = CurrentSession.User.Role.Contains("Admin", StringComparison.OrdinalIgnoreCase);
             
 
@@ -197,6 +196,7 @@ namespace NCB_INV
                 int oldQty = Convert.ToInt32(row.Cells["Qty"].Value);
 
                 Book selected = new(
+                    row.Cells["Subject"].Value.ToString(),
                     row.Cells["ISBN"].Value.ToString(),
                     row.Cells["Title"].Value.ToString(),
                     row.Cells["Edition"].Value.ToString(),
@@ -252,19 +252,22 @@ namespace NCB_INV
                     for (int i = 1; i < table.Rows.Count; i++)
                     {
                         var row = table.Rows[i];
-                        if (row[0] == DBNull.Value || string.IsNullOrWhiteSpace(row[0].ToString()))
+                        if (row[1] == DBNull.Value || string.IsNullOrWhiteSpace(row[1].ToString()))
                             continue;
+                        string rawisbn = row[1].ToString().Trim();
+                        string cleanIsbn = rawisbn.Replace("-", "").Replace(" ", "");
 
                         Book excelBook = new(
-                            row[0].ToString().Trim(),
-                            row[1]?.ToString() ?? "",
+                            row[0].ToString() ?? "",
+                            cleanIsbn,
                             row[2]?.ToString() ?? "",
                             row[3]?.ToString() ?? "",
                             row[4]?.ToString() ?? "",
                             row[5]?.ToString() ?? "",
-                            row[6] == DBNull.Value ? 0 : Convert.ToInt32(row[6]),
-                            row[7] == DBNull.Value ? 0m : Convert.ToDecimal(row[7]),
-                            row[8]?.ToString() ?? "",
+                            row[6]?.ToString() ?? "",
+                            row[7] == DBNull.Value ? 0 : Convert.ToInt32(row[7]),
+                            row[8] == DBNull.Value ? 0m : Convert.ToDecimal(row[8]),
+                            row[9]?.ToString() ?? "",
                             DateTime.Now
                         );
 
