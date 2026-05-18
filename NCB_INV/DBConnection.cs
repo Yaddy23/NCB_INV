@@ -55,7 +55,7 @@ namespace NCB_INV
 
             try
             {
-                client.DefaultRequestHeaders.Add("User-Agent", "C# Inventory App");
+                client.DefaultRequestHeaders.Add("Yad", "Software");
 
                 string url = $"https://www.googleapis.com/books/v1/volumes?q=isbn:{cleanIsbn}";
                 string response = await client.GetStringAsync(url);
@@ -108,7 +108,7 @@ namespace NCB_INV
             using HttpClient client = new();
             try
             {
-                client.DefaultRequestHeaders.Add("User-Agent", "C# Inventory App");
+                client.DefaultRequestHeaders.Add("Yad", "Software");
 
                 string url = $"https://openlibrary.org/api/books?bibkeys=ISBN:{cleanIsbn}&format=json&jscmd=data";
                 string response = await client.GetStringAsync(url);
