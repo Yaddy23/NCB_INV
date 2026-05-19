@@ -282,8 +282,7 @@ namespace NCB_INV
                     Publisher TEXT,
                     SyncRequired INTEGER DEFAULT 0,
                     LastModified DATETIME DEFAULT CURRENT_TIMESTAMP
-                );
-                CREATE INDEX IF NOT EXISTS idx_title ON OfflineBooks(Title);";
+                );";
             command.ExecuteNonQuery();
 
             var command1 = connection.CreateCommand();
@@ -399,20 +398,19 @@ namespace NCB_INV
             INSERT INTO OfflineBooks (Subject, ISBN, Title, Edition, Year, Author, Bind, Qty, Price, Publisher, LastModified, SyncRequired)
             VALUES ($subject, $isbn, $title, $edition, $year, $author, $bind, $qty, $price, $publisher, $date, 0)
             ON CONFLICT(ISBN) DO UPDATE SET 
-            Subject=$subject, Title=$title, Qty=$qty, Price=$price, LastModified=$date, SyncRequired=0 
-            WHERE LastModified < $date;";
-            
-            cmd.Parameters.AddWithValue("$subject", book.Subject);
-            cmd.Parameters.AddWithValue("$isbn", book.ISBN);
-            cmd.Parameters.AddWithValue("$title", book.Title);
-            cmd.Parameters.AddWithValue("$edition", book.Edition);
-            cmd.Parameters.AddWithValue("$year", book.Year);
-            cmd.Parameters.AddWithValue("$author", book.Author);
-            cmd.Parameters.AddWithValue("$bind", book.Bind);
+            Subject=$subject, Title=$title, Edition=$edition, Author=$author, Qty=$qty, Price=$price, LastModified=$date, SyncRequired=0;";
+
+            cmd.Parameters.AddWithValue("$subject", book.Subject ?? "");
+            cmd.Parameters.AddWithValue("$isbn", book.ISBN ?? "");
+            cmd.Parameters.AddWithValue("$title", book.Title ?? "");
+            cmd.Parameters.AddWithValue("$edition", book.Edition ?? "");
+            cmd.Parameters.AddWithValue("$year", book.Year ?? "");
+            cmd.Parameters.AddWithValue("$author", book.Author ?? "");
+            cmd.Parameters.AddWithValue("$bind", book.Bind ?? "");
             cmd.Parameters.AddWithValue("$qty", book.Qty);
             cmd.Parameters.AddWithValue("$price", book.Price);
-            cmd.Parameters.AddWithValue("$publisher", book.Publisher);
-            cmd.Parameters.AddWithValue("$date", book.LastModified);
+            cmd.Parameters.AddWithValue("$publisher", book.Publisher ?? "");
+            cmd.Parameters.AddWithValue("$date", book.LastModified); // Changed $mod to $date
             cmd.ExecuteNonQuery();
         }
 
@@ -567,16 +565,16 @@ namespace NCB_INV
             Subject=$subject, Title=$title, Edition=$edition, Year=$year, Author=$author, Bind=$bind, 
             Price=$price, Publisher=$publisher, Qty=$qty, LastModified=$date, SyncRequired=$sync;";
             
-            cmd.Parameters.AddWithValue("$subject", book.Subject);
-            cmd.Parameters.AddWithValue("$isbn", book.ISBN);
-            cmd.Parameters.AddWithValue("$title", book.Title);
-            cmd.Parameters.AddWithValue("$edition", book.Edition);
-            cmd.Parameters.AddWithValue("$year", book.Year);
-            cmd.Parameters.AddWithValue("$author", book.Author);
-            cmd.Parameters.AddWithValue("$bind", book.Bind);
+            cmd.Parameters.AddWithValue("$subject", book.Subject ?? "");
+            cmd.Parameters.AddWithValue("$isbn", book.ISBN ?? "");
+            cmd.Parameters.AddWithValue("$title", book.Title ?? "");
+            cmd.Parameters.AddWithValue("$edition", book.Edition ?? "");
+            cmd.Parameters.AddWithValue("$year", book.Year ?? "");
+            cmd.Parameters.AddWithValue("$author", book.Author ?? "");
+            cmd.Parameters.AddWithValue("$bind", book.Bind ?? "");
             cmd.Parameters.AddWithValue("$qty", book.Qty);
             cmd.Parameters.AddWithValue("$price", book.Price);
-            cmd.Parameters.AddWithValue("$publisher", book.Publisher);
+            cmd.Parameters.AddWithValue("$publisher", book.Publisher ?? "");
             cmd.Parameters.AddWithValue("$date", modifiedDate);
             cmd.Parameters.AddWithValue("$sync", syncFlag);
 

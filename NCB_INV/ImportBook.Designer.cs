@@ -28,8 +28,8 @@
         /// </summary>
         private void InitializeComponent()
         {
-            DataGridViewCellStyle dataGridViewCellStyle3 = new DataGridViewCellStyle();
-            DataGridViewCellStyle dataGridViewCellStyle4 = new DataGridViewCellStyle();
+            DataGridViewCellStyle dataGridViewCellStyle1 = new DataGridViewCellStyle();
+            DataGridViewCellStyle dataGridViewCellStyle2 = new DataGridViewCellStyle();
             dgvBookList = new DataGridView();
             btnReload = new Button();
             btnImport = new Button();
@@ -43,6 +43,7 @@
             lblNetStatus = new Label();
             flowLayoutPanel_Buttons = new FlowLayoutPanel();
             lblSuggestion = new Label();
+            lblTotalStocks = new Label();
             ((System.ComponentModel.ISupportInitialize)dgvBookList).BeginInit();
             flowLayoutPanel_Buttons.SuspendLayout();
             SuspendLayout();
@@ -51,19 +52,19 @@
             // 
             dgvBookList.AllowUserToAddRows = false;
             dgvBookList.AllowUserToDeleteRows = false;
-            dataGridViewCellStyle3.BackColor = Color.FromArgb(249, 249, 249);
-            dgvBookList.AlternatingRowsDefaultCellStyle = dataGridViewCellStyle3;
+            dataGridViewCellStyle1.BackColor = Color.FromArgb(249, 249, 249);
+            dgvBookList.AlternatingRowsDefaultCellStyle = dataGridViewCellStyle1;
             dgvBookList.BackgroundColor = Color.White;
             dgvBookList.BorderStyle = BorderStyle.None;
             dgvBookList.CellBorderStyle = DataGridViewCellBorderStyle.SingleHorizontal;
-            dataGridViewCellStyle4.Alignment = DataGridViewContentAlignment.MiddleLeft;
-            dataGridViewCellStyle4.BackColor = Color.Navy;
-            dataGridViewCellStyle4.Font = new Font("Segoe UI", 10.2F, FontStyle.Bold, GraphicsUnit.Point, 0);
-            dataGridViewCellStyle4.ForeColor = Color.White;
-            dataGridViewCellStyle4.SelectionBackColor = SystemColors.Highlight;
-            dataGridViewCellStyle4.SelectionForeColor = SystemColors.HighlightText;
-            dataGridViewCellStyle4.WrapMode = DataGridViewTriState.True;
-            dgvBookList.ColumnHeadersDefaultCellStyle = dataGridViewCellStyle4;
+            dataGridViewCellStyle2.Alignment = DataGridViewContentAlignment.MiddleLeft;
+            dataGridViewCellStyle2.BackColor = Color.Navy;
+            dataGridViewCellStyle2.Font = new Font("Segoe UI", 10.2F, FontStyle.Bold, GraphicsUnit.Point, 0);
+            dataGridViewCellStyle2.ForeColor = Color.White;
+            dataGridViewCellStyle2.SelectionBackColor = SystemColors.Highlight;
+            dataGridViewCellStyle2.SelectionForeColor = SystemColors.HighlightText;
+            dataGridViewCellStyle2.WrapMode = DataGridViewTriState.True;
+            dgvBookList.ColumnHeadersDefaultCellStyle = dataGridViewCellStyle2;
             dgvBookList.ColumnHeadersHeightSizeMode = DataGridViewColumnHeadersHeightSizeMode.AutoSize;
             dgvBookList.Location = new Point(12, 192);
             dgvBookList.Name = "dgvBookList";
@@ -200,11 +201,22 @@
             lblSuggestion.TextAlign = ContentAlignment.MiddleLeft;
             lblSuggestion.Click += lblSuggestion_Click;
             // 
+            // lblTotalStocks
+            // 
+            lblTotalStocks.AutoSize = true;
+            lblTotalStocks.Font = new Font("Segoe UI", 18F, FontStyle.Bold, GraphicsUnit.Point, 0);
+            lblTotalStocks.Location = new Point(879, 148);
+            lblTotalStocks.Name = "lblTotalStocks";
+            lblTotalStocks.Size = new Size(26, 41);
+            lblTotalStocks.TabIndex = 17;
+            lblTotalStocks.Text = ".";
+            // 
             // ImportBook
             // 
             AutoScaleDimensions = new SizeF(8F, 20F);
             AutoScaleMode = AutoScaleMode.Font;
             ClientSize = new Size(1157, 582);
+            Controls.Add(lblTotalStocks);
             Controls.Add(lblSuggestion);
             Controls.Add(flowLayoutPanel_Buttons);
             Controls.Add(lblNetStatus);
@@ -239,5 +251,6 @@
         private Label lblNetStatus;
         private FlowLayoutPanel flowLayoutPanel_Buttons;
         private Label lblSuggestion;
+        private Label lblTotalStocks;
     }
 }

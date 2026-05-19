@@ -4,6 +4,7 @@ using System.Data;
 using System.IO;
 using System.Net.NetworkInformation;
 using System.Text;
+using System.Threading.Tasks;
 using System.Windows.Forms;
 using ExcelDataReader;
 using static NCB_INV.DBConnection;
@@ -118,14 +119,28 @@ namespace NCB_INV
         {
             DataTable freshData = DBConnection.GetInventory();
 
+            //int qty = 0;
+
+            //foreach (DataRow row in freshData.Rows)
+            //{
+            //    if (row["Qty"] != DBNull.Value)
+            //    {
+            //        qty = Convert.ToInt32(row["Qty"]);
+            //        qty += qty;
+            //    }
+            //}
+
+            //lblTotalStocks.Text = $"Total Stocks: {qty}";
+
             // Re-bind the data source
             dgvBookList.DataSource = freshData;
+
         }
 
         private void ApplyPermissions()
         {
             bool isAdmin = CurrentSession.User.Role.Contains("Admin", StringComparison.OrdinalIgnoreCase);
-            
+
 
             btnImport.Visible = isAdmin;
             btnDeleteBook.Visible = isAdmin;
@@ -229,7 +244,7 @@ namespace NCB_INV
                 }
             }
         }
-        private void btnImport_Click(object sender, EventArgs e)
+        private async void btnImport_Click(object sender, EventArgs e)
         {
             OpenFileDialog ofd = new() { Filter = "Excel Files|*.xlsx;*.xls" };
 
@@ -243,6 +258,7 @@ namespace NCB_INV
                     var transactionBatch = new List<Transaction>();
                     int totalImportedCount = 0;
 
+                    // Ensure you have "using System.IO;" at the top
                     using var stream = File.Open(ofd.FileName, FileMode.Open, FileAccess.Read);
                     using var reader = ExcelReaderFactory.CreateReader(stream);
 
@@ -254,11 +270,13 @@ namespace NCB_INV
                         var row = table.Rows[i];
                         if (row[1] == DBNull.Value || string.IsNullOrWhiteSpace(row[1].ToString()))
                             continue;
+
                         string rawisbn = row[1].ToString().Trim();
+                        // Clean ISBN to match database format
                         string cleanIsbn = rawisbn.Replace("-", "").Replace(" ", "");
 
-                        Book excelBook = new(
-                            row[0].ToString() ?? "",
+                        Book excelBook = new Book(
+                            row[0]?.ToString() ?? "",
                             cleanIsbn,
                             row[2]?.ToString() ?? "",
                             row[3]?.ToString() ?? "",
@@ -272,51 +290,31 @@ namespace NCB_INV
                         );
 
                         batchList.Add(excelBook);
-
-                        transactionBatch.Add(new Transaction
-                        {
-                            ISBN = excelBook.ISBN,
-                            Title = excelBook.Title,
-                            ChangeAmount = excelBook.Qty,
-                            NewTotal = excelBook.Qty.ToString(),
-                            Reason = "Excel Bulk Import",
-                            performedBy = CurrentSession.User.DisplayName,
-                            Timestamp = DateTime.Now
-                        });
-
                         totalImportedCount++;
 
+                        // Process in batches of 5000 for speed
                         if (batchList.Count >= 5000)
                         {
-                            DBConnection.BulkImportBooks(batchList);
-                            DBConnection.LogBulkTransactions(transactionBatch);
-
+                            await Task.Run(() => DBConnection.BulkImportBooks(batchList));
                             batchList.Clear();
-                            transactionBatch.Clear();
                         }
                     }
 
+                    // Final batch
                     if (batchList.Count > 0)
                     {
-                        DBConnection.BulkImportBooks(batchList);
-                        DBConnection.LogBulkTransactions(transactionBatch);
+                        await Task.Run(() => DBConnection.BulkImportBooks(batchList));
                     }
 
-                    DBConnection.LogTransaction(
-                        "BULK_IMPORT_SUMMARY",
-                        $"File: {Path.GetFileName(ofd.FileName)} ({totalImportedCount} items)",
-                        totalImportedCount,
-                        "N/A",
-                        "Bulk Import Execution",
-                        CurrentSession.User.DisplayName
-                    );
+                    // Sync the local SQLite database so the Scanner sees the new books
+                    await DBConnection.ExecuteDeltaSync();
 
-                    MessageBox.Show($"Import Successful! {totalImportedCount} books and logs processed.", "Success", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    MessageBox.Show($"Import Successful! {totalImportedCount} books processed.", "Success", MessageBoxButtons.OK, MessageBoxIcon.Information);
                     RefreshBookList();
                 }
                 catch (Exception ex)
                 {
-                    MessageBox.Show("Error during import: " + ex.Message, "Import Failed", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    MessageBox.Show("Error: " + ex.Message);
                 }
                 finally
                 {
@@ -408,7 +406,7 @@ namespace NCB_INV
                 lblSuggestion.Text = $"Did you mean: {cleanSuggestion}?";
                 lblSuggestion.Visible = true;
                 lblSuggestion.MaximumSize = new Size(0, 0);
-                dgvBookList.DataSource = null; 
+                dgvBookList.DataSource = null;
             }
             else
             {

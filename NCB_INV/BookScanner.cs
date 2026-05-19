@@ -99,8 +99,12 @@ namespace NCB_INV
                         .Where(r => r[0] != DBNull.Value && !string.IsNullOrWhiteSpace(r[0].ToString()))
                         .GroupBy(r => {
                             string raw = r[0].ToString().Trim();
-                            if (raw.EndsWith(".0")) raw = raw.Substring(0, raw.Length - 2);
-                            return raw;
+                            
+                            if (double.TryParse(raw, out double d))
+                            {
+                                return d.ToString("F0");
+                            }
+                            return raw.Replace("-", "");
                         });
 
                         foreach (var group in groupedData)
