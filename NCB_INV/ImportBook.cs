@@ -119,20 +119,10 @@ namespace NCB_INV
         {
             DataTable freshData = DBConnection.GetInventory();
 
-            //int qty = 0;
+            int total = freshData.AsEnumerable().Sum(r => r.Field<int?>("Qty") ?? 0);
+            lblTotalStocks.Text = $"Total Stocks: {total}";
 
-            //foreach (DataRow row in freshData.Rows)
-            //{
-            //    if (row["Qty"] != DBNull.Value)
-            //    {
-            //        qty = Convert.ToInt32(row["Qty"]);
-            //        qty += qty;
-            //    }
-            //}
-
-            //lblTotalStocks.Text = $"Total Stocks: {qty}";
-
-            // Re-bind the data source
+            //Re - bind the data source
             dgvBookList.DataSource = freshData;
 
         }
@@ -163,6 +153,8 @@ namespace NCB_INV
             RefreshBookList();
 
             await RunBackgroundSync();
+
+           
         }
 
         private void btnSearch_Click(object sender, EventArgs e)
