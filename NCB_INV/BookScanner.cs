@@ -32,14 +32,14 @@ namespace NCB_INV
                 string isbn = txtBarcodeScanner.Text.Trim();
                 if (string.IsNullOrEmpty(isbn)) return;
 
-                currentbook = DBConnection.GetBookByISBN(isbn);
+                currentbook = DBConnection.GetLocalBookByISBN(isbn);
                 string currentuser = DBConnection.CurrentSession.User?.DisplayName ?? "Unknown User";
 
                 if (currentbook != null)
                 {
                     int oldQty = currentbook.Qty;
                     currentbook.Qty += 1;
-                    DBConnection.SaveBook(currentbook);
+                    DBConnection.SaveBook(currentbook, currentbook.AuthorId, currentbook.PublisherId);
 
                     lblTitle.Text = $"Title: {currentbook.Title}";
                     lblOldQty.Text = $"Previous Qty: {oldQty}";

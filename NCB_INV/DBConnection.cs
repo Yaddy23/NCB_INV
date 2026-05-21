@@ -16,10 +16,11 @@ namespace NCB_INV
 {
     public static class DBConnection
     {
+        private static readonly object _dbLock = new();
         private static readonly string connString = Properties.Settings.Default.MongoConn;
         private static readonly IMongoCollection<Book>? _bookCollection;
         private static readonly IMongoDatabase? _database;
-        private static readonly string sqliteConn = "Data Source=local_inventory.db";
+        private static readonly string sqliteConn = "Data Source=local_inventory.db;";
 
         static DBConnection()
         {
@@ -85,13 +86,17 @@ namespace NCB_INV
                         title,
                         "1st",
                         publishedYear,
-                        authors,
+                        "0",
                         "Unknown",
                         1,
                         0.00m,
-                        publisher,
+                        "0",
                         DateTime.UtcNow
-                    );
+                    )
+                    {
+                        AuthorId = authors,
+                        PublisherId = publisher
+                    };
                 }
             }
             catch (Exception ex)
@@ -146,6 +151,11 @@ namespace NCB_INV
                 System.Diagnostics.Debug.WriteLine("OpenLibrary Error: " + ex.Message);
             }
             return null;
+        }
+
+        private static string Normalize(string input)
+        {
+            return input?.Trim().ToLower() ?? "";
         }
 
         // Fetches missing ISBN metadata from external providers.
@@ -267,26 +277,47 @@ namespace NCB_INV
         {
             using var connection = new SqliteConnection(sqliteConn);
             connection.Open();
+
+            using (var cmd = connection.CreateCommand())
+            {
+                cmd.CommandText = @"
+                    PRAGMA journal_mode=WAL; 
+                    PRAGMA synchronous=NORMAL;
+                    PRAGMA busy_timeout = 5000";
+                cmd.ExecuteNonQuery();
+            }
+
+            using var transaction = connection.BeginTransaction();
             var command = connection.CreateCommand();
+            command.Transaction = transaction;
             command.CommandText = @"
+                CREATE TABLE IF NOT EXISTS Publishers (
+                    PublisherID INTEGER PRIMARY KEY AUTOINCREMENT,
+                    Name TEXT UNIQUE COLLATE NOCASE
+                );
+
+                CREATE TABLE IF NOT EXISTS Authors (
+                    AuthorID INTEGER PRIMARY KEY AUTOINCREMENT,
+                    Name TEXT UNIQUE COLLATE NOCASE
+                );
+
                 CREATE TABLE IF NOT EXISTS OfflineBooks (
-                    Subject TEXT,
                     ISBN TEXT PRIMARY KEY,
                     Title TEXT,
+                    Subject TEXT,
                     Edition TEXT,
                     Year TEXT,
-                    Author TEXT,
                     Bind TEXT,
                     Qty INTEGER,
                     Price DECIMAL,
-                    Publisher TEXT,
+                    PublisherID INTEGER,
+                    AuthorID INTEGER,
                     SyncRequired INTEGER DEFAULT 0,
-                    LastModified DATETIME DEFAULT CURRENT_TIMESTAMP
-                );";
-            command.ExecuteNonQuery();
+                    LastModified DATETIME DEFAULT CURRENT_TIMESTAMP,
+                    FOREIGN KEY (PublisherID) REFERENCES Publishers(PublisherID),
+                    FOREIGN KEY (AuthorID) REFERENCES Authors(AuthorID)
+                );
 
-            var command1 = connection.CreateCommand();
-            command1.CommandText = @"
                 CREATE TABLE IF NOT EXISTS UserCache (
                     Username TEXT PRIMARY KEY,
                     DisplayName TEXT,
@@ -294,9 +325,37 @@ namespace NCB_INV
                     PasswordHash TEXT,
                     LastSync DATETIME
                 );";
-            command1.ExecuteNonQuery();
 
+            command.ExecuteNonQuery();
+            transaction.Commit();
         }
+
+        private static int GetOrCreateEntity(SqliteConnection conn, SqliteTransaction trans, string tableName, string name)
+        {
+
+            if (string.IsNullOrWhiteSpace(name)) return -1;
+
+            string cleanName = Normalize(name);
+            string col = tableName.TrimEnd('s') + "ID";
+
+            string selectSql = $"SELECT {col} FROM {tableName} WHERE Name COLLATE NOCASE = @name";
+
+            using var selectCmd = conn.CreateCommand();
+            selectCmd.Transaction = trans;
+            selectCmd.CommandText = selectSql;
+            selectCmd.Parameters.AddWithValue("@name", cleanName);
+
+            var result = selectCmd.ExecuteScalar();
+            if (result != null) return Convert.ToInt32(result);
+
+            using var insertCmd = conn.CreateCommand();
+            insertCmd.Transaction = trans;
+            insertCmd.CommandText = $"INSERT INTO {tableName} (Name) VALUES (@name); SELECT last_insert_rowid();";
+            insertCmd.Parameters.AddWithValue("@name", cleanName);
+
+            return Convert.ToInt32(insertCmd.ExecuteScalar());
+
+        } //helper
 
         public static bool IsCloudAvailable()
         {
@@ -326,94 +385,172 @@ namespace NCB_INV
 
                 var cloudBooks = await bookCollection.Find(new BsonDocument()).ToListAsync();
 
-                using (var conn = new SqliteConnection(sqliteConn))
+                using var conn = new SqliteConnection(sqliteConn);
+                conn.Open();
+
+                using var transaction = conn.BeginTransaction();
+
+                try
                 {
-                    conn.Open();
-                    using var transaction = conn.BeginTransaction();
+                    var mongoAuthors = (await _database.GetCollection<Author>("Authors").Find(_ => true).ToListAsync())
+                   .ToDictionary(a => a.Id.ToString(), a => a.Name);
+                    var mongoPubs = (await _database.GetCollection<Publisher>("Publishers").Find(_ => true).ToListAsync())
+                                       .ToDictionary(p => p.Id.ToString(), p => p.Name);
 
                     foreach (var cBook in cloudBooks)
                     {
-                        UpdateLocalFromCloudInternal(cBook, conn, transaction);
-                    }
-                    transaction.Commit();
-                }
+                        string authorName = mongoAuthors.TryGetValue(cBook.AuthorId, out var aName) ? aName : "Unknown";
+                        string pubName = mongoPubs.TryGetValue(cBook.PublisherId, out var pName) ? pName : "Unknown";
 
-                System.Diagnostics.Debug.WriteLine($"Delta Sync: Completed successfully.");
+                        UpdateLocalFromCloudInternal(cBook, conn, transaction, authorName, pubName);
+                    }
+
+                    transaction.Commit();
+                    System.Diagnostics.Debug.WriteLine($"Delta Sync: {cloudBooks.Count} books processed.");
+                }
+                catch (Exception ex)
+                {
+                    transaction.Rollback();
+                    System.Diagnostics.Debug.WriteLine("Delta Sync Transaction Failed: " + ex.Message);
+                }
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine("Delta Sync Error: " + ex.Message);
+                System.Diagnostics.Debug.WriteLine("Delta Sync General Error: " + ex.Message);
             }
         }
 
-        private static async Task PushLocalChangesToCloud(IMongoCollection<Book> bookCollection)
+        public static async Task PushLocalChangesToCloud(IMongoCollection<Book> bookCollection)
         {
+            if (_database == null) return;
+
+            var authorsColl = _database.GetCollection<Author>("Authors");
+            var pubsColl = _database.GetCollection<Publisher>("Publishers");
+
+            var mongoAuthors = (await authorsColl.Find(_ => true).ToListAsync()).ToDictionary(a => a.Name.ToLower().Trim(), a => a);
+            var mongoPubs = (await pubsColl.Find(_ => true).ToListAsync()).ToDictionary(p => p.Name.ToLower().Trim(), p => p);
+
             using var conn = new SqliteConnection(sqliteConn);
             conn.Open();
 
-            string query = "SELECT * FROM OfflineBooks WHERE SyncRequired = 1";
-            using (var cmd = new SqliteCommand(query, conn))
-            using (var reader = await cmd.ExecuteReaderAsync())
+            string query = @"
+                SELECT b.*, a.Name as AuthorName, p.Name as PublisherName 
+                FROM OfflineBooks b
+                LEFT JOIN Authors a ON b.AuthorID = a.AuthorID
+                LEFT JOIN Publishers p ON b.PublisherID = p.PublisherID
+                WHERE b.SyncRequired = 1";
+
+            using var cmd = new SqliteCommand(query, conn);
+            using var reader = await cmd.ExecuteReaderAsync();
+
+            var syncedIsbns = new List<string>();
+
+            while (await reader.ReadAsync())
             {
-                while (await reader.ReadAsync())
+                try
                 {
+                    string isbn = reader["ISBN"].ToString()?.Trim() ?? "";
+                    string authorName = reader["AuthorName"]?.ToString()?.Trim() ?? "Unknown";
+                    string pubName = reader["PublisherName"]?.ToString()?.Trim() ?? "Unknown";
+
+                    var cloudAuthor = await GetOrCreateCloudEntity(authorsColl, mongoAuthors, authorName);
+                    var cloudPub = await GetOrCreateCloudEntity(pubsColl, mongoPubs, pubName);
+
                     var book = new Book(
                         reader["Subject"].ToString() ?? "",
-                        reader["ISBN"].ToString()?.Trim() ?? "", // Trim ISBN
+                        isbn,
                         reader["Title"].ToString() ?? "",
                         reader["Edition"].ToString() ?? "",
                         reader["Year"].ToString() ?? "",
-                        reader["Author"].ToString() ?? "",
+                        cloudAuthor.Id.ToString(),
                         reader["Bind"].ToString() ?? "",
                         Convert.ToInt32(reader["Qty"]),
                         Convert.ToDecimal(reader["Price"]),
-                        reader["Publisher"].ToString() ?? "",
+                        cloudPub.Id.ToString(),
                         Convert.ToDateTime(reader["LastModified"])
                     );
 
-                    // 2. Use Upsert to force the update
                     var result = await bookCollection.ReplaceOneAsync(
                         b => b.ISBN == book.ISBN,
                         book,
                         new ReplaceOptions { IsUpsert = true }
                     );
 
-                    // 3. ONLY mark as synced if MongoDB confirmed the update/upsert
                     if (result.IsAcknowledged)
                     {
-                        using var updateCmd = new SqliteCommand(
-                            "UPDATE OfflineBooks SET SyncRequired = 0 WHERE ISBN = @isbn", conn);
-                        updateCmd.Parameters.AddWithValue("@isbn", book.ISBN);
-                        updateCmd.ExecuteNonQuery();
+                        syncedIsbns.Add(isbn);
                     }
                 }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"Failed to sync book {reader["ISBN"]}: {ex.Message}");
+                }
+            }
+
+            if (syncedIsbns.Count > 0)
+            {
+                using var trans = conn.BeginTransaction();
+                foreach (var isbn in syncedIsbns)
+                {
+                    using var updateCmd = new SqliteCommand(
+                        "UPDATE OfflineBooks SET SyncRequired = 0 WHERE ISBN = @isbn", conn, trans);
+                    updateCmd.Parameters.AddWithValue("@isbn", isbn);
+                    await updateCmd.ExecuteNonQueryAsync();
+                }
+                trans.Commit();
             }
         }
 
-        private static void UpdateLocalFromCloudInternal(Book book, SqliteConnection conn, SqliteTransaction trans)
+        private static async Task<T> GetOrCreateCloudEntity<T>(IMongoCollection<T> collection, Dictionary<string, T> cache, string name) where T : new()
         {
-            var cmd = conn.CreateCommand();
+            string normName = name.ToLower().Trim();
+            if (cache.TryGetValue(normName, out var existing)) return existing;
+
+            var entity = new T();
+            var prop = typeof(T).GetProperty("Name");
+            prop?.SetValue(entity, name);
+
+            await collection.InsertOneAsync(entity);
+            cache[normName] = entity;
+            return entity;
+        }
+
+        private static void UpdateLocalFromCloudInternal(Book book, SqliteConnection conn, SqliteTransaction trans, string authorName, string publisherName)
+        {
+            int localAuthorId = GetOrCreateEntity(conn, trans, "Authors", authorName);
+            int localPubId = GetOrCreateEntity(conn, trans, "Publishers", publisherName);
+
+            using var cmd = conn.CreateCommand();
             cmd.Transaction = trans;
+
             cmd.CommandText = @"
-            INSERT INTO OfflineBooks (Subject, ISBN, Title, Edition, Year, Author, Bind, Qty, Price, Publisher, LastModified, SyncRequired)
-            VALUES ($subject, $isbn, $title, $edition, $year, $author, $bind, $qty, $price, $publisher, $date, 0)
-            ON CONFLICT(ISBN) DO UPDATE SET 
-            Subject=$subject, Title=$title, Edition=$edition, Author=$author, Qty=$qty, Price=$price, LastModified=$date, SyncRequired=0;";
+                INSERT INTO OfflineBooks (Subject, ISBN, Title, Edition, Year, AuthorID, Bind, Qty, Price, PublisherID, LastModified, SyncRequired)
+                VALUES ($subject, $isbn, $title, $edition, $year, $authorId, $bind, $qty, $price, $pubId, $date, 0)
+                ON CONFLICT(ISBN) DO UPDATE SET 
+                Subject=$subject, 
+                Title=$title, 
+                Edition=$edition, 
+                AuthorID=$authorId, 
+                Qty=$qty, 
+                Price=$price, 
+                PublisherID=$pubId, 
+                LastModified=$date, 
+                SyncRequired=0;";
 
             cmd.Parameters.AddWithValue("$subject", book.Subject ?? "");
             cmd.Parameters.AddWithValue("$isbn", book.ISBN ?? "");
             cmd.Parameters.AddWithValue("$title", book.Title ?? "");
             cmd.Parameters.AddWithValue("$edition", book.Edition ?? "");
             cmd.Parameters.AddWithValue("$year", book.Year ?? "");
-            cmd.Parameters.AddWithValue("$author", book.Author ?? "");
+            cmd.Parameters.AddWithValue("$authorId", localAuthorId);
             cmd.Parameters.AddWithValue("$bind", book.Bind ?? "");
             cmd.Parameters.AddWithValue("$qty", book.Qty);
             cmd.Parameters.AddWithValue("$price", book.Price);
-            cmd.Parameters.AddWithValue("$publisher", book.Publisher ?? "");
-            cmd.Parameters.AddWithValue("$date", book.LastModified); // Changed $mod to $date
+            cmd.Parameters.AddWithValue("$pubId", localPubId);
+            cmd.Parameters.AddWithValue("$date", book.LastModified);
+
             cmd.ExecuteNonQuery();
         }
-
         // Manages the connection state and pushes local cached data to MongoDB.
 
         public static DataTable GetInventory()
@@ -462,47 +599,45 @@ namespace NCB_INV
         {
             var books = new List<Book>();
             using var connection = new SqliteConnection(sqliteConn);
-
             connection.Open();
-            var cmd = connection.CreateCommand();
-            if (string.IsNullOrEmpty(filter))
-                cmd.CommandText = "SELECT * FROM OfflineBooks";
-            else
-                cmd.CommandText = "SELECT * FROM OfflineBooks WHERE Title LIKE $f OR ISBN LIKE $f";
 
-            cmd.Parameters.AddWithValue("$f", $"%{filter}%");
+            var cmd = connection.CreateCommand();
+
+            // The SQL Query is correct - it gets the names and IDs
+            cmd.CommandText = @"
+        SELECT b.*, a.Name as AuthorName, p.Name as PublisherName 
+        FROM OfflineBooks b
+        LEFT JOIN Authors a ON b.AuthorID = a.AuthorID
+        LEFT JOIN Publishers p ON b.PublisherID = p.PublisherID";
+
+            if (!string.IsNullOrEmpty(filter))
+            {
+                cmd.CommandText += " WHERE b.Title LIKE $f OR b.ISBN LIKE $f";
+                cmd.Parameters.AddWithValue("$f", $"%{filter}%");
+            }
 
             using (var reader = cmd.ExecuteReader())
             {
                 while (reader.Read())
                 {
-                    int qtyCol = reader.GetOrdinal("Qty");
-                    int priceCol = reader.GetOrdinal("Price");
-
-                    DateTime lastMod = DateTime.MinValue;
-                    try
-                    {
-                        int modIndex = reader.GetOrdinal("LastModified");
-                        if (!reader.IsDBNull(modIndex))
-                        {
-                            lastMod = Convert.ToDateTime(reader[modIndex]);
-                        }
-                    }
-                    catch { /* Column missing in this specific .db file */ }
-
-                    books.Add(new Book(
+                    // 1. Create the object using the IDs (matches your Book.cs constructor)
+                    var book = new Book(
                         reader["Subject"]?.ToString() ?? "",
                         reader["ISBN"]?.ToString() ?? "",
                         reader["Title"]?.ToString() ?? "",
                         reader["Edition"]?.ToString() ?? "",
                         reader["Year"]?.ToString() ?? "",
-                        reader["Author"]?.ToString() ?? "",
+                        reader["AuthorID"]?.ToString() ?? "0", // Pass the ID
                         reader["Bind"]?.ToString() ?? "",
-                        reader.IsDBNull(qtyCol) ? 0 : Convert.ToInt32(reader[qtyCol]),
-                        reader.IsDBNull(priceCol) ? 0m : Convert.ToDecimal(reader[priceCol]),
-                        reader["Publisher"]?.ToString() ?? "",
-                        lastMod
-                    ));
+                        Convert.ToInt32(reader["Qty"]),
+                        Convert.ToDecimal(reader["Price"]),
+                        reader["PublisherID"]?.ToString() ?? "0", // Pass the ID
+                        Convert.ToDateTime(reader["LastModified"])
+                    );
+                    book.AuthorName = reader["AuthorName"]?.ToString() ?? "Unknown";
+                    book.PublisherName = reader["PublisherName"]?.ToString() ?? "Unknown";
+
+                    books.Add(book);
                 }
             }
             return books;
@@ -519,7 +654,15 @@ namespace NCB_INV
 
             using var conn = new SqliteConnection(sqliteConn);
             conn.Open();
-            using var cmd = new SqliteCommand("SELECT * FROM OfflineBooks WHERE ISBN = @isbn LIMIT 1", conn);
+
+            string query = @"
+                SELECT b.*, a.Name as AuthorName, p.Name as PublisherName 
+                FROM OfflineBooks b
+                LEFT JOIN Authors a ON b.AuthorID = a.AuthorID
+                LEFT JOIN Publishers p ON b.PublisherID = p.PublisherID
+                WHERE b.ISBN = @isbn LIMIT 1";
+
+            using var cmd = new SqliteCommand(query, conn);
             cmd.Parameters.AddWithValue("@isbn", isbn.Trim());
 
             using var reader = cmd.ExecuteReader();
@@ -531,12 +674,12 @@ namespace NCB_INV
                     reader["Title"].ToString() ?? "",
                     reader["Edition"].ToString() ?? "",
                     reader["Year"].ToString() ?? "",
-                    reader["Author"].ToString() ?? "",
+                    reader["AuthorName"].ToString() ?? "Unknown",
                     reader["Bind"].ToString() ?? "",
                     Convert.ToInt32(reader["Qty"]),
                     Convert.ToDecimal(reader["Price"]),
-                    reader["Publisher"].ToString() ?? "",
-                    reader["LastModified"] == DBNull.Value ? DateTime.MinValue : Convert.ToDateTime(reader["LastModified"])
+                    reader["PublisherName"].ToString() ?? "Unknown",
+                    Convert.ToDateTime(reader["LastModified"])
                 );
             }
             return null;
@@ -551,96 +694,154 @@ namespace NCB_INV
 
         private static void SaveToSQLite(Book book, bool isSyncing = false)
         {
-            using var connection = new SqliteConnection(sqliteConn);
-            connection.Open();
-            var cmd = connection.CreateCommand();
+            lock (_dbLock)
+            {
+                using var connection = new SqliteConnection(sqliteConn);
+                connection.Open();
 
-            int syncFlag = isSyncing ? 0 : 1;
-            DateTime modifiedDate = isSyncing ? book.LastModified : DateTime.UtcNow;
+                using var transaction = connection.BeginTransaction();
 
-            cmd.CommandText = @"
-            INSERT INTO OfflineBooks (Subject, ISBN, Title, Edition, Year, Author, Bind, Qty, Price, Publisher, LastModified, SyncRequired)
-            VALUES ($subject, $isbn, $title, $edition, $year, $author, $bind, $qty, $price, $publisher, $date, $sync)
-            ON CONFLICT(ISBN) DO UPDATE SET 
-            Subject=$subject, Title=$title, Edition=$edition, Year=$year, Author=$author, Bind=$bind, 
-            Price=$price, Publisher=$publisher, Qty=$qty, LastModified=$date, SyncRequired=$sync;";
-            
-            cmd.Parameters.AddWithValue("$subject", book.Subject ?? "");
-            cmd.Parameters.AddWithValue("$isbn", book.ISBN ?? "");
-            cmd.Parameters.AddWithValue("$title", book.Title ?? "");
-            cmd.Parameters.AddWithValue("$edition", book.Edition ?? "");
-            cmd.Parameters.AddWithValue("$year", book.Year ?? "");
-            cmd.Parameters.AddWithValue("$author", book.Author ?? "");
-            cmd.Parameters.AddWithValue("$bind", book.Bind ?? "");
-            cmd.Parameters.AddWithValue("$qty", book.Qty);
-            cmd.Parameters.AddWithValue("$price", book.Price);
-            cmd.Parameters.AddWithValue("$publisher", book.Publisher ?? "");
-            cmd.Parameters.AddWithValue("$date", modifiedDate);
-            cmd.Parameters.AddWithValue("$sync", syncFlag);
+                try
+                {
+                    int authorId = GetOrCreateEntity(connection, transaction, "Authors", book.AuthorId);
+                    int publisherId = GetOrCreateEntity(connection, transaction, "Publishers", book.PublisherId);
 
-            cmd.ExecuteNonQuery();
+                    int syncFlag = isSyncing ? 0 : 1;
+                    DateTime modifiedDate = isSyncing ? book.LastModified : DateTime.UtcNow;
+                    using var cmd = connection.CreateCommand();
+                    cmd.Transaction = transaction;
+
+                    cmd.CommandText = @"
+                        INSERT INTO OfflineBooks (Subject, ISBN, Title, Edition, Year, AuthorID, Bind, Qty, Price, PublisherID, LastModified, SyncRequired)
+                        VALUES ($subject, $isbn, $title, $edition, $year, $authorId, $bind, $qty, $price, $pubId, $date, $sync)
+                        ON CONFLICT(ISBN) DO UPDATE SET 
+                        Subject=$subject, Title=$title, Edition=$edition, Year=$year, AuthorID=$authorId, Bind=$bind, 
+                        Price=$price, PublisherID=$pubId, Qty=$qty, LastModified=$date, SyncRequired=$sync;";
+
+                    cmd.Parameters.AddWithValue("$subject", book.Subject ?? "");
+                    cmd.Parameters.AddWithValue("$isbn", book.ISBN ?? "");
+                    cmd.Parameters.AddWithValue("$title", book.Title ?? "");
+                    cmd.Parameters.AddWithValue("$edition", book.Edition ?? "");
+                    cmd.Parameters.AddWithValue("$year", book.Year ?? "");
+                    cmd.Parameters.AddWithValue("$authorId", authorId);
+                    cmd.Parameters.AddWithValue("$bind", book.Bind ?? "");
+                    cmd.Parameters.AddWithValue("$qty", book.Qty);
+                    cmd.Parameters.AddWithValue("$price", book.Price);
+                    cmd.Parameters.AddWithValue("$pubId", publisherId);
+                    cmd.Parameters.AddWithValue("$date", modifiedDate);
+                    cmd.Parameters.AddWithValue("$sync", syncFlag);
+
+                    cmd.ExecuteNonQuery();
+                    transaction.Commit();
+                }
+                catch
+                {
+                    transaction.Rollback();
+                    throw;
+                }
+            }
         }
 
         public static void BulkSaveToSQLite(List<Book> books)
         {
-            using var connection = new SqliteConnection(sqliteConn);
-
-            connection.Open();
-            using var transaction = connection.BeginTransaction();
-
-            var cmd = connection.CreateCommand();
-            cmd.CommandText = @"INSERT OR REPLACE INTO OfflineBooks 
-            (Subject, ISBN, Title, Edition,Year, Author, Bind, Price, Qty, Publisher, SyncRequired, LastModified) 
-            VALUES ($subject, $isbn, $title, $edition, $year, $author, $bind, $price, $qty, $publisher, 1, $lastMod)";
-
-            cmd.Parameters.Add("$subject", SqliteType.Text);
-            cmd.Parameters.Add("$isbn", SqliteType.Text);
-            cmd.Parameters.Add("$title", SqliteType.Text);
-            cmd.Parameters.Add("$edition", SqliteType.Text);
-            cmd.Parameters.Add("$year", SqliteType.Text);
-            cmd.Parameters.Add("$author", SqliteType.Text);
-            cmd.Parameters.Add("$bind", SqliteType.Text);
-            cmd.Parameters.Add("$price", SqliteType.Real);
-            cmd.Parameters.Add("$qty", SqliteType.Integer);
-            cmd.Parameters.Add("$publisher", SqliteType.Text);
-            cmd.Parameters.Add("$lastMod", SqliteType.Text);
-
-            foreach (var b in books)
+            lock (_dbLock)
             {
-                cmd.Parameters["$subject"].Value = b.Subject;
-                cmd.Parameters["$isbn"].Value = b.ISBN;
-                cmd.Parameters["$title"].Value = b.Title;
-                cmd.Parameters["$edition"].Value = b.Edition;
-                cmd.Parameters["$year"].Value = b.Year;
-                cmd.Parameters["$author"].Value = b.Author;
-                cmd.Parameters["$bind"].Value = b.Bind;
-                cmd.Parameters["$price"].Value = b.Price;
-                cmd.Parameters["$qty"].Value = b.Qty;
-                cmd.Parameters["$publisher"].Value = b.Publisher;
-                cmd.Parameters["$lastMod"].Value = b.LastModified.ToString("yyyy-MM-dd HH:mm:ss");
-                cmd.ExecuteNonQuery();
-            }
-            transaction.Commit();
+                using var connection = new SqliteConnection(sqliteConn);
+                connection.Open();
+                using var transaction = connection.BeginTransaction();
 
+                try
+                {
+                    var cmd = connection.CreateCommand();
+                    cmd.Transaction = transaction;
+
+                    cmd.CommandText = @"INSERT OR REPLACE INTO OfflineBooks 
+                        (Subject, ISBN, Title, Edition, Year, AuthorID, Bind, Price, Qty, PublisherID, SyncRequired, LastModified) 
+                        VALUES ($subject, $isbn, $title, $edition, $year, $authorId, $bind, $price, $qty, $publisherId, 1, $lastMod)";
+
+                    cmd.Parameters.Add("$subject", SqliteType.Text);
+                    cmd.Parameters.Add("$isbn", SqliteType.Text);
+                    cmd.Parameters.Add("$title", SqliteType.Text);
+                    cmd.Parameters.Add("$edition", SqliteType.Text);
+                    cmd.Parameters.Add("$year", SqliteType.Text);
+                    cmd.Parameters.Add("$authorId", SqliteType.Integer);
+                    cmd.Parameters.Add("$bind", SqliteType.Text);
+                    cmd.Parameters.Add("$price", SqliteType.Real);
+                    cmd.Parameters.Add("$qty", SqliteType.Integer);
+                    cmd.Parameters.Add("$publisherId", SqliteType.Integer);
+                    cmd.Parameters.Add("$lastMod", SqliteType.Text);
+
+                    foreach (var b in books)
+                    {
+                        int authorId = GetOrCreateEntity(connection, transaction, "Authors", b.AuthorId);
+                        int publisherId = GetOrCreateEntity(connection, transaction, "Publishers", b.PublisherId);
+
+                        cmd.Parameters["$subject"].Value = b.Subject ?? (object)DBNull.Value;
+                        cmd.Parameters["$isbn"].Value = b.ISBN ?? (object)DBNull.Value;
+                        cmd.Parameters["$title"].Value = b.Title ?? (object)DBNull.Value;
+                        cmd.Parameters["$edition"].Value = b.Edition ?? (object)DBNull.Value;
+                        cmd.Parameters["$year"].Value = b.Year ?? (object)DBNull.Value;
+                        cmd.Parameters["$authorId"].Value = authorId;
+                        cmd.Parameters["$bind"].Value = b.Bind ?? (object)DBNull.Value;
+                        cmd.Parameters["$price"].Value = b.Price;
+                        cmd.Parameters["$qty"].Value = b.Qty;
+                        cmd.Parameters["$publisherId"].Value = publisherId;
+                        cmd.Parameters["$lastMod"].Value = b.LastModified.ToString("yyyy-MM-dd HH:mm:ss");
+
+                        cmd.ExecuteNonQuery();
+                    }
+                    transaction.Commit();
+                }
+                catch
+                {
+                    transaction.Rollback();
+                    throw;
+                }
+            }
         }
 
-        public static void SaveBook(Book book)
+        public static void SaveBook(Book book, string authorName, string publisherName)
         {
+            string cleanAuthor = Normalize(authorName);
+            string cleanPub = Normalize(publisherName);
+
+            book.AuthorId = cleanAuthor;
+            book.PublisherId = cleanPub;
+
             if (IsCloudAvailable())
             {
-                var filter = Builders<Book>.Filter.Eq(b => b.ISBN, book.ISBN);
-                var collection = _bookCollection ?? _database?.GetCollection<Book>("Books");
-                if (collection != null)
+                try
                 {
-                    collection.ReplaceOne(filter, book, new ReplaceOptions { IsUpsert = true });
-                    return;
-                }
+                    var authorColl = _database.GetCollection<Author>("Authors");
+                    var publisherColl = _database.GetCollection<Publisher>("Publishers");
 
-                System.Diagnostics.Debug.WriteLine("SaveBook: cloud collection unavailable, saving locally.");
+                    var author = authorColl.Find(a => a.Name.ToLower() == cleanAuthor).FirstOrDefault();
+                    if (author == null)
+                    {
+                        author = new Author { Name = cleanAuthor };
+                        authorColl.InsertOne(author);
+                    }
+
+                    var publisher = publisherColl.Find(p => p.Name.ToLower() == cleanPub).FirstOrDefault();
+                    if (publisher == null)
+                    {
+                        publisher = new Publisher { Name = cleanPub };
+                        publisherColl.InsertOne(publisher);
+                    }
+
+                    var filter = Builders<Book>.Filter.Eq(b => b.ISBN, book.ISBN);
+                    _bookCollection.ReplaceOne(filter, book, new ReplaceOptions { IsUpsert = true });
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine("Cloud Sync Failed: " + ex.Message);
+                }
             }
 
-            SaveToSQLite(book);
-            MessageBox.Show("Cloud unavailable. Saved to local database.", "Offline Mode", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            lock (_dbLock)
+            {
+                SaveToSQLite(book);
+            }
         }
 
         public static void DeleteBook(string isbn)
@@ -658,45 +859,60 @@ namespace NCB_INV
 
         public static void BulkImportBooks(List<Book> books)
         {
-            if (books == null || books.Count == 0) return;
-
-            if (IsCloudAvailable())
+            lock (_dbLock)
             {
-                var bulkOps = new List<WriteModel<Book>>();
+                if (books == null || books.Count == 0) return;
 
-                foreach (var book in books)
+                if (IsCloudAvailable())
                 {
-                    var updateModel = new UpdateOneModel<Book>(
-                        filter: Builders<Book>.Filter.Eq(b => b.ISBN, book.ISBN),
-                        update: Builders<Book>.Update
-                            .Set(b => b.Subject, book.Subject)
-                            .Set(b => b.Title, book.Title)
-                            .Set(b => b.Year, book.Year)
-                            .Set(b => b.Author, book.Author)
-                            .Set(b => b.Bind, book.Bind)
-                            .Set(b => b.Price, book.Price)
-                            .Set(b => b.Publisher, book.Publisher)
-                            .Set(b => b.Qty, book.Qty)
-                    )
-                    { IsUpsert = true };
 
-                    bulkOps.Add(updateModel);
-                }
+                    var localZeroQtyBooks = new List<Book>();
+                    foreach (var b in books)
+                    {
+                        localZeroQtyBooks.Add(new Book(
+                            b.Subject, b.ISBN, b.Title, b.Edition, b.Year,
+                            b.AuthorId, b.Bind, 0,
+                            b.Price, b.PublisherId, b.LastModified
+                        ));
+                    }
 
-                var collection = _bookCollection ?? _database?.GetCollection<Book>("Books");
-                if (collection != null)
-                {
-                    collection.BulkWrite(bulkOps, new BulkWriteOptions { IsOrdered = false });
+                    var bulkOps = new List<WriteModel<Book>>();
+
+                    foreach (var book in books)
+                    {
+                        var updateModel = new UpdateOneModel<Book>(
+                            filter: Builders<Book>.Filter.Eq(b => b.ISBN, book.ISBN),
+                            update: Builders<Book>.Update
+                                .Set(b => b.Subject, book.Subject)
+                                .Set(b => b.Title, book.Title)
+                                .Set(b => b.Year, book.Year)
+                                .Set(b => b.AuthorId, book.AuthorId)
+                                .Set(b => b.Bind, book.Bind)
+                                .Set(b => b.Price, book.Price)
+                                .Set(b => b.PublisherId, book.PublisherId)
+                                .Set(b => b.Qty, book.Qty)
+                        )
+                        { IsUpsert = true };
+
+                        bulkOps.Add(updateModel);
+                    }
+
+                    var collection = _bookCollection ?? _database?.GetCollection<Book>("Books");
+                    if (collection != null)
+                    {
+                        collection.BulkWrite(bulkOps, new BulkWriteOptions { IsOrdered = false });
+                        BulkSaveToSQLite(localZeroQtyBooks);
+                    }
+                    else
+                    {
+                        MessageBox.Show("BulkImportBooks: cloud collection unavailable, saving locally.");
+                        BulkSaveToSQLite(books);
+                    }
                 }
                 else
                 {
-                    System.Diagnostics.Debug.WriteLine("BulkImportBooks: cloud collection unavailable, saving locally.");
                     BulkSaveToSQLite(books);
                 }
-            }
-            else
-            {
-                BulkSaveToSQLite(books);
             }
         }
 
@@ -737,7 +953,7 @@ namespace NCB_INV
 
             foreach (var b in books)
             {
-                dt.Rows.Add(b.Subject, b.ISBN, b.Title, b.Edition, b.Year, b.Author, b.Bind, b.Qty, b.Price, b.Publisher);
+                dt.Rows.Add(b.Subject, b.ISBN, b.Title, b.Edition, b.Year, b.AuthorName, b.Bind, b.Qty, b.Price, b.PublisherName);
             }
             return dt;
         }
@@ -760,29 +976,32 @@ namespace NCB_INV
 
         public static UserAccount? Login(string username, string password)
         {
-            string superClean = "";
-            foreach (char c in password) { if (char.IsLetterOrDigit(c)) superClean += c; }
-            string hashedpass = HashPassword(superClean);
-            string trimmedUser = username.Trim();
-
-            if (_database != null)
+            lock (_dbLock)
             {
-                try
+                string superClean = "";
+                foreach (char c in password) { if (char.IsLetterOrDigit(c)) superClean += c; }
+                string hashedpass = HashPassword(superClean);
+                string trimmedUser = username.Trim();
+
+                if (_database != null)
                 {
-                    var collection = _database.GetCollection<UserAccount>("Users");
-                    var user = collection.Find(u => u.Username == trimmedUser && u.Password == hashedpass).FirstOrDefault();
-
-                    if (user != null)
+                    try
                     {
+                        var collection = _database.GetCollection<UserAccount>("Users");
+                        var user = collection.Find(u => u.Username == trimmedUser && u.Password == hashedpass).FirstOrDefault();
 
-                        UpdateLocalUserCache(user.Username, user.DisplayName, user.Role, hashedpass);
-                        return user;
+                        if (user != null)
+                        {
+
+                            UpdateLocalUserCache(user.Username, user.DisplayName, user.Role, hashedpass);
+                            return user;
+                        }
                     }
+                    catch { /* Fall through to offline if cloud fails */ }
                 }
-                catch { /* Fall through to offline if cloud fails */ }
-            }
 
-            return AuthenticateOffline(trimmedUser, hashedpass);
+                return AuthenticateOffline(trimmedUser, hashedpass);
+            }
         }
 
         private static UserAccount? AuthenticateOffline(string username, string hashedPass)

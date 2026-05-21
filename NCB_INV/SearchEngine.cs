@@ -39,7 +39,7 @@ namespace NCB_INV
             var matches = source.Where(b =>
                 b.Title.ToLower().Contains(query) ||
                 b.ISBN.Contains(query) ||
-                b.Author.ToLower().Contains(query)
+                b.AuthorId.ToLower().Contains(query)
             ).ToList();
 
             if (matches.Any()) return (matches, null);

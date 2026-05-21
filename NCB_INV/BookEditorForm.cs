@@ -48,11 +48,11 @@ namespace NCB_INV
             txtTitle.Text = BookData?.Title;
             txtEdition.Text = BookData?.Edition;
             txtYear.Text = BookData?.Year;
-            txtAuthor.Text = BookData?.Author;
+            txtAuthor.Text = BookData?.AuthorId;
             txtBind.Text = BookData?.Bind;
             txtQty.Text = BookData?.Qty.ToString();
             txtPrice.Text = BookData?.Price.ToString();
-            txtPublisher.Text = BookData?.Publisher;
+            txtPublisher.Text = BookData?.PublisherId;
         }
 
         private void BookEditorForm_Load(object sender, EventArgs e)
@@ -110,9 +110,9 @@ namespace NCB_INV
                             txtTitle.Text = foundBook.Title;
                             txtEdition.Text = foundBook.Edition;
                             txtYear.Text = foundBook.Year;
-                            txtAuthor.Text = foundBook.Author;
+                            txtAuthor.Text = foundBook.AuthorId;
                             txtBind.Text = foundBook.Bind;
-                            txtPublisher.Text = foundBook.Publisher;
+                            txtPublisher.Text = foundBook.PublisherId;
 
                             txtPrice.Focus();
                             lblStatus.Text = "Stats: Success!";

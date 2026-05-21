@@ -66,6 +66,7 @@ namespace NCB_INV
 
         private void SetupAutoSync()
         {
+
             syncTimer = new System.Windows.Forms.Timer();
             syncTimer.Interval = 300000;
             syncTimer.Tick += async (s, e) => await RunBackgroundSync();
@@ -124,7 +125,14 @@ namespace NCB_INV
 
             //Re - bind the data source
             dgvBookList.DataSource = freshData;
+        }
 
+        private void HideColumnIfExists(string columnName)
+        {
+            if (dgvBookList.Columns.Contains(columnName))
+            {
+                dgvBookList.Columns[columnName].Visible = false;
+            }
         }
 
         private void ApplyPermissions()
@@ -180,7 +188,7 @@ namespace NCB_INV
                 }
                 else
                 {
-                    DBConnection.SaveBook(editor.BookData);
+                    DBConnection.SaveBook(editor.BookData, editor.BookData.AuthorId, editor.BookData.PublisherId);
 
                     DBConnection.LogTransaction(
                     editor.BookData.ISBN,
@@ -200,27 +208,28 @@ namespace NCB_INV
             if (dgvBookList.SelectedRows.Count > 0)
             {
                 var row = dgvBookList.SelectedRows[0];
-                int oldQty = Convert.ToInt32(row.Cells["Qty"].Value);
 
-                Book selected = new(
-                    row.Cells["Subject"].Value.ToString(),
-                    row.Cells["ISBN"].Value.ToString(),
-                    row.Cells["Title"].Value.ToString(),
-                    row.Cells["Edition"].Value.ToString(),
-                    row.Cells["Year"].Value.ToString(),
-                    row.Cells["Author"].Value.ToString(),
-                    row.Cells["Bind"].Value.ToString(),
+                int oldQty = row.Cells["Qty"].Value != DBNull.Value ? Convert.ToInt32(row.Cells["Qty"].Value) : 0;
+                decimal price = row.Cells["Price"].Value != DBNull.Value ? Convert.ToDecimal(row.Cells["Price"].Value) : 0m;
+
+                Book selected = new Book(
+                    row.Cells["Subject"].Value?.ToString() ?? "",
+                    row.Cells["ISBN"].Value?.ToString() ?? "",
+                    row.Cells["Title"].Value?.ToString() ?? "",
+                    row.Cells["Edition"].Value?.ToString() ?? "",
+                    row.Cells["Year"].Value?.ToString() ?? "",
+                    row.Cells["Author"].Value?.ToString() ?? "Unknown",
+                    row.Cells["Bind"].Value?.ToString() ?? "",
                     oldQty,
-                    Convert.ToDecimal(row.Cells["Price"].Value),
-                    row.Cells["Publisher"].Value.ToString(),
+                    price,
+                    row.Cells["Publisher"].Value?.ToString() ?? "Unknown",
                     DateTime.Now
                 );
 
                 using var editor = new BookEditorForm(selected);
-
                 if (editor.ShowDialog() == DialogResult.OK)
                 {
-                    DBConnection.SaveBook(editor.BookData);
+                    DBConnection.SaveBook(editor.BookData, editor.BookData.AuthorId, editor.BookData.PublisherId);
 
                     int change = editor.BookData.Qty - oldQty;
                     DBConnection.LogTransaction(
@@ -229,7 +238,7 @@ namespace NCB_INV
                         change,
                         editor.BookData.Qty.ToString(),
                         "Stock Modified",
-                        CurrentSession.User.DisplayName
+                        DBConnection.CurrentSession.User?.DisplayName ?? "Unknown"
                     );
 
                     RefreshBookList();
@@ -264,7 +273,6 @@ namespace NCB_INV
                             continue;
 
                         string rawisbn = row[1].ToString().Trim();
-                        // Clean ISBN to match database format
                         string cleanIsbn = rawisbn.Replace("-", "").Replace(" ", "");
 
                         Book excelBook = new Book(
@@ -273,13 +281,14 @@ namespace NCB_INV
                             row[2]?.ToString() ?? "",
                             row[3]?.ToString() ?? "",
                             row[4]?.ToString() ?? "",
-                            row[5]?.ToString() ?? "",
+                            row[5]?.ToString() ?? "Unknown",
                             row[6]?.ToString() ?? "",
                             row[7] == DBNull.Value ? 0 : Convert.ToInt32(row[7]),
                             row[8] == DBNull.Value ? 0m : Convert.ToDecimal(row[8]),
-                            row[9]?.ToString() ?? "",
+                            row[9]?.ToString() ?? "Unknown",
                             DateTime.Now
-                        );
+                        )
+                        ;
 
                         batchList.Add(excelBook);
                         totalImportedCount++;
