@@ -127,14 +127,6 @@ namespace NCB_INV
             dgvBookList.DataSource = freshData;
         }
 
-        private void HideColumnIfExists(string columnName)
-        {
-            if (dgvBookList.Columns.Contains(columnName))
-            {
-                dgvBookList.Columns[columnName].Visible = false;
-            }
-        }
-
         private void ApplyPermissions()
         {
             bool isAdmin = CurrentSession.User.Role.Contains("Admin", StringComparison.OrdinalIgnoreCase);

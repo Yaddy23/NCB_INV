@@ -565,8 +565,20 @@ namespace NCB_INV
                 {
                     cloudList = _bookCollection.Find(new BsonDocument()).ToList();
 
+                    var authors = _database.GetCollection<Author>("Authors").Find(new BsonDocument()).ToList();
+                    var publishers = _database.GetCollection<Publisher>("Publishers").Find(new BsonDocument()).ToList();
+
+                    var authorDict = authors.ToDictionary(a => a.Id.ToString(), a => a.Name);
+                    var pubDict = publishers.ToDictionary(p => p.Id.ToString(), p => p.Name);
+
+                    foreach (var b in cloudList)
+                    {
+                        b.AuthorName = authorDict.GetValueOrDefault(b.AuthorId, "Unknown").ToUpper();
+                        b.PublisherName = pubDict.GetValueOrDefault(b.PublisherId, "Unknown").ToUpper();
+                    }
+
                 }
-                catch { /* Fallback to offline only if Mongo fails */ }
+                catch(Exception e) { Console.WriteLine($"Error fetching cloud data: {e.Message}"); }
             }
 
             var combined = (online
@@ -603,12 +615,11 @@ namespace NCB_INV
 
             var cmd = connection.CreateCommand();
 
-            // The SQL Query is correct - it gets the names and IDs
             cmd.CommandText = @"
-        SELECT b.*, a.Name as AuthorName, p.Name as PublisherName 
-        FROM OfflineBooks b
-        LEFT JOIN Authors a ON b.AuthorID = a.AuthorID
-        LEFT JOIN Publishers p ON b.PublisherID = p.PublisherID";
+                SELECT b.*, a.Name as AuthorName, p.Name as PublisherName 
+                FROM OfflineBooks b
+                LEFT JOIN Authors a ON b.AuthorID = a.AuthorID
+                LEFT JOIN Publishers p ON b.PublisherID = p.PublisherID";
 
             if (!string.IsNullOrEmpty(filter))
             {
@@ -620,18 +631,17 @@ namespace NCB_INV
             {
                 while (reader.Read())
                 {
-                    // 1. Create the object using the IDs (matches your Book.cs constructor)
                     var book = new Book(
                         reader["Subject"]?.ToString() ?? "",
                         reader["ISBN"]?.ToString() ?? "",
                         reader["Title"]?.ToString() ?? "",
                         reader["Edition"]?.ToString() ?? "",
                         reader["Year"]?.ToString() ?? "",
-                        reader["AuthorID"]?.ToString() ?? "0", // Pass the ID
+                        reader["AuthorID"]?.ToString() ?? "0",
                         reader["Bind"]?.ToString() ?? "",
                         Convert.ToInt32(reader["Qty"]),
                         Convert.ToDecimal(reader["Price"]),
-                        reader["PublisherID"]?.ToString() ?? "0", // Pass the ID
+                        reader["PublisherID"]?.ToString() ?? "0",
                         Convert.ToDateTime(reader["LastModified"])
                     );
                     book.AuthorName = reader["AuthorName"]?.ToString() ?? "Unknown";
