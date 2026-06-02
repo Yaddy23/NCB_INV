@@ -964,7 +964,12 @@ namespace NCB_INV
                 var authorMap = (await authorsColl.Find(_ => true).ToListAsync()).ToDictionary(a => a.Name.ToLower(), a => a.Id.ToString());
                 var pubMap = (await pubsColl.Find(_ => true).ToListAsync()).ToDictionary(p => p.Name.ToLower(), p => p.Id.ToString());
 
+                var reverseAuthorMap = authorMap.ToDictionary(kvp => kvp.Value, kvp => kvp.Key, StringComparer.OrdinalIgnoreCase);
+                var reversePubMap = pubMap.ToDictionary(kvp => kvp.Value, kvp => kvp.Key, StringComparer.OrdinalIgnoreCase);
+
                 var bulkOps = new List<WriteModel<Book>>();
+                var localBooksToSave = new List<Book>();
+
                 foreach (var book in books)
                 {
                     string authorVal = book.AuthorId?.Trim() ?? "Unknown";
@@ -982,8 +987,16 @@ namespace NCB_INV
                             .Inc(b => b.Qty, book.Qty)
                     )
                     { IsUpsert = true });
+
+                    string localAuthorName = reverseAuthorMap.ContainsKey(aId) ? reverseAuthorMap[aId] : authorVal;
+                    string localPubName = reversePubMap.ContainsKey(pId) ? reversePubMap[pId] : pubVal;
+
+                    var localBook = new Book(book.Subject, book.ISBN, book.Title, book.Edition, book.Year, localAuthorName, book.Bind, book.Qty, book.Price, localPubName, book.LastModified);
+                    localBooksToSave.Add(localBook);
                 }
+
                 await _database.GetCollection<Book>("Books").BulkWriteAsync(bulkOps);
+                BulkSaveToSQLite(localBooksToSave);
             }
         }
 
