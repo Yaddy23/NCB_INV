@@ -837,12 +837,6 @@ namespace NCB_INV
 
         public static void SaveBook(Book book, string authorName, string publisherName)
         {
-            string cleanAuthor = Normalize(authorName);
-            string cleanPub = Normalize(publisherName);
-
-            book.AuthorId = cleanAuthor;
-            book.PublisherId = cleanPub;
-
             if (IsCloudAvailable())
             {
                 try
@@ -850,19 +844,16 @@ namespace NCB_INV
                     var authorColl = _database.GetCollection<Author>("Authors");
                     var publisherColl = _database.GetCollection<Publisher>("Publishers");
 
-                    var author = authorColl.Find(a => a.Name.ToLower() == cleanAuthor).FirstOrDefault();
-                    if (author == null)
-                    {
-                        author = new Author { Name = cleanAuthor };
-                        authorColl.InsertOne(author);
-                    }
+                    var author = authorColl.Find(a => a.Name.ToLower() == authorName.ToLower()).FirstOrDefault()
+                                 ?? new Author { Name = authorName };
+                    if (author.Id == ObjectId.Empty) authorColl.InsertOne(author);
 
-                    var publisher = publisherColl.Find(p => p.Name.ToLower() == cleanPub).FirstOrDefault();
-                    if (publisher == null)
-                    {
-                        publisher = new Publisher { Name = cleanPub };
-                        publisherColl.InsertOne(publisher);
-                    }
+                    var publisher = publisherColl.Find(p => p.Name.ToLower() == publisherName.ToLower()).FirstOrDefault()
+                                    ?? new Publisher { Name = publisherName };
+                    if (publisher.Id == ObjectId.Empty) publisherColl.InsertOne(publisher);
+
+                    book.AuthorId = author.Id.ToString();
+                    book.PublisherId = publisher.Id.ToString();
 
                     var filter = Builders<Book>.Filter.Eq(b => b.ISBN, book.ISBN);
                     _bookCollection.ReplaceOne(filter, book, new ReplaceOptions { IsUpsert = true });

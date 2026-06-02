@@ -82,7 +82,7 @@ namespace NCB_INV
                 txtPublisher.Text,
                 DateTime.Now
             );
-            DBConnection.LogTransaction(txtISBN.Text, txtTitle.Text, int.Parse(txtQty.Text),  txtQty.Text, "Initial Stock Entry", currentuser);
+            DBConnection.LogTransaction(txtISBN.Text, txtTitle.Text, int.Parse(txtQty.Text), txtQty.Text, "Initial Stock Entry", currentuser);
             this.DialogResult = DialogResult.OK;
             this.Close();
         }
@@ -132,6 +132,11 @@ namespace NCB_INV
                     }
                 }
             }
+        }
+
+        private void btnCancel_Click(object sender, EventArgs e)
+        {
+            this.Close();
         }
     }
 }

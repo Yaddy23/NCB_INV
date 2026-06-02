@@ -216,6 +216,7 @@
             btnCancel.TabIndex = 27;
             btnCancel.Text = "Cancel";
             btnCancel.UseVisualStyleBackColor = true;
+            btnCancel.Click += btnCancel_Click;
             // 
             // lblStatus
             // 
