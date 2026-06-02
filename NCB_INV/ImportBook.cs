@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Data;
+using System.Diagnostics;
 using System.IO;
 using System.Net.NetworkInformation;
 using System.Text;
@@ -154,12 +155,7 @@ namespace NCB_INV
 
             await RunBackgroundSync();
 
-           
-        }
 
-        private void btnSearch_Click(object sender, EventArgs e)
-        {
-            dgvBookList.DataSource = DBConnection.SearchBooks(txtSearch.Text);
         }
 
         private void btnReload_Click(object sender, EventArgs e)
@@ -239,6 +235,17 @@ namespace NCB_INV
         }
         private async void btnImport_Click(object sender, EventArgs e)
         {
+            var resultCheck = MessageBox.Show("Do you have the formatted Excel template for import?",
+            "Template Check", MessageBoxButtons.YesNoCancel, MessageBoxIcon.Question);
+
+            if (resultCheck == DialogResult.Cancel) return;
+
+            if (resultCheck == DialogResult.No)
+            {
+                GenerateExcelTemplate();
+                return;
+            }
+
             OpenFileDialog ofd = new() { Filter = "Excel Files|*.xlsx;*.xls" };
 
             if (ofd.ShowDialog() == DialogResult.OK)
@@ -246,12 +253,13 @@ namespace NCB_INV
                 try
                 {
                     Cursor.Current = Cursors.WaitCursor;
-
                     var batchList = new List<Book>();
-                    var transactionBatch = new List<Transaction>();
+
+                    var uniqueAuthors = new HashSet<string>();
+                    var uniquePublishers = new HashSet<string>();
+
                     int totalImportedCount = 0;
 
-                    // Ensure you have "using System.IO;" at the top
                     using var stream = File.Open(ofd.FileName, FileMode.Open, FileAccess.Read);
                     using var reader = ExcelReaderFactory.CreateReader(stream);
 
@@ -267,41 +275,55 @@ namespace NCB_INV
                         string rawisbn = row[1].ToString().Trim();
                         string cleanIsbn = rawisbn.Replace("-", "").Replace(" ", "");
 
+                        int qty = 0;
+                        if (row[7] != DBNull.Value)
+                        {
+                            string rawqty = row[7].ToString().Trim();
+                            if (double.TryParse(rawqty, out double parsedQty))
+                            {
+                                qty = (int)Math.Round(parsedQty);
+                            }
+                        }
+
+                        string authorName = row[5]?.ToString()?.Trim() ?? "Unknown";
+                        string pubName = row[9]?.ToString()?.Trim() ?? "Unknown";
+
+                        uniqueAuthors.Add(authorName);
+                        uniquePublishers.Add(pubName);
+
                         Book excelBook = new Book(
                             row[0]?.ToString() ?? "",
                             cleanIsbn,
                             row[2]?.ToString() ?? "",
                             row[3]?.ToString() ?? "",
                             row[4]?.ToString() ?? "",
-                            row[5]?.ToString() ?? "Unknown",
+                            authorName,
                             row[6]?.ToString() ?? "",
-                            row[7] == DBNull.Value ? 0 : Convert.ToInt32(row[7]),
+                            qty,
                             row[8] == DBNull.Value ? 0m : Convert.ToDecimal(row[8]),
-                            row[9]?.ToString() ?? "Unknown",
+                            pubName,
                             DateTime.Now
-                        )
-                        ;
+                        );
 
                         batchList.Add(excelBook);
                         totalImportedCount++;
 
-                        // Process in batches of 5000 for speed
                         if (batchList.Count >= 5000)
                         {
-                            await Task.Run(() => DBConnection.BulkImportBooks(batchList));
+                            await Task.Run(() => DBConnection.BulkImportBooks(batchList, uniqueAuthors.ToList(), uniquePublishers.ToList()));
+
                             batchList.Clear();
+                            uniqueAuthors.Clear();
+                            uniquePublishers.Clear();
                         }
                     }
 
-                    // Final batch
                     if (batchList.Count > 0)
                     {
-                        await Task.Run(() => DBConnection.BulkImportBooks(batchList));
+                        await Task.Run(() => DBConnection.BulkImportBooks(batchList, uniqueAuthors.ToList(), uniquePublishers.ToList()));
                     }
 
-                    // Sync the local SQLite database so the Scanner sees the new books
                     await DBConnection.ExecuteDeltaSync();
-
                     MessageBox.Show($"Import Successful! {totalImportedCount} books processed.", "Success", MessageBoxButtons.OK, MessageBoxIcon.Information);
                     RefreshBookList();
                 }
@@ -312,6 +334,58 @@ namespace NCB_INV
                 finally
                 {
                     Cursor.Current = Cursors.Default;
+                }
+            }
+        }
+
+        // Helper method to generate the template
+        private void GenerateExcelTemplate()
+        {
+            SaveFileDialog sfd = new()
+            {
+                Filter = "Excel Workbook|*.xlsx",
+                FileName = "Book_Import_Template.xlsx"
+            };
+
+            if (sfd.ShowDialog() == DialogResult.OK)
+            {
+                try
+                {
+                    using (var workbook = new ClosedXML.Excel.XLWorkbook())
+                    {
+                        var worksheet = workbook.Worksheets.Add("Books");
+
+                        string[] headers = { "Subject", "ISBN", "Title", "Edition", "Year", "Author", "Bind", "Qty", "Price", "Publisher" };
+                        for (int i = 0; i < headers.Length; i++)
+                        {
+                            worksheet.Cell(1, i + 1).Value = headers[i];
+                        }
+                        worksheet.Column(2).Style.NumberFormat.Format = "0";
+
+                        worksheet.Cell(2, 1).Value = "Science";
+                        worksheet.Cell(2, 2).Value = 9781233999550;
+                        worksheet.Cell(2, 3).Value = "Sample Book";
+                        worksheet.Cell(2, 4).Value = "1st";
+                        worksheet.Cell(2, 5).Value = 2024;
+                        worksheet.Cell(2, 6).Value = "John Doe";
+                        worksheet.Cell(2, 7).Value = "Hardbound";
+                        worksheet.Cell(2, 8).Value = 10;
+                        worksheet.Cell(2, 9).Value = 450.00;
+                        worksheet.Cell(2, 10).Value = "Sample Publisher";
+
+                        worksheet.Range("A1:J1").Style.Font.Bold = true;
+                        worksheet.Columns().AdjustToContents();
+
+                        workbook.SaveAs(sfd.FileName);
+                    }
+
+                    MessageBox.Show("True Excel Template generated successfully!", "Success", MessageBoxButtons.OK, MessageBoxIcon.Information);
+
+                    Process.Start(new ProcessStartInfo(sfd.FileName) { UseShellExecute = true });
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show("Failed to generate template: " + ex.Message);
                 }
             }
         }
@@ -377,8 +451,7 @@ namespace NCB_INV
 
             if (string.IsNullOrEmpty(query))
             {
-                var allBooks = DBConnection.GetLocalBooks();
-                dgvBookList.DataSource = allBooks;
+                RefreshBookList();
 
                 lblSuggestion.Visible = false;
                 return;
@@ -416,6 +489,11 @@ namespace NCB_INV
             .Trim();
 
             txtSearch.Text = suggestedWord;
+        }
+
+        private void button1_Click(object sender, EventArgs e)
+        {
+            //DeleteHexNames();
         }
     }
 }

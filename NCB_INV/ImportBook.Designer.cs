@@ -44,6 +44,7 @@
             flowLayoutPanel_Buttons = new FlowLayoutPanel();
             lblSuggestion = new Label();
             lblTotalStocks = new Label();
+            btnPricelist = new Button();
             ((System.ComponentModel.ISupportInitialize)dgvBookList).BeginInit();
             flowLayoutPanel_Buttons.SuspendLayout();
             SuspendLayout();
@@ -71,15 +72,15 @@
             dgvBookList.ReadOnly = true;
             dgvBookList.RowHeadersWidth = 51;
             dgvBookList.SelectionMode = DataGridViewSelectionMode.FullRowSelect;
-            dgvBookList.Size = new Size(1138, 273);
+            dgvBookList.Size = new Size(1212, 273);
             dgvBookList.TabIndex = 0;
             dgvBookList.CellFormatting += dgvBookList_CellFormatting;
             // 
             // btnReload
             // 
-            btnReload.Location = new Point(992, 49);
+            btnReload.Location = new Point(992, 52);
             btnReload.Name = "btnReload";
-            btnReload.Size = new Size(148, 43);
+            btnReload.Size = new Size(232, 39);
             btnReload.TabIndex = 1;
             btnReload.Text = "Reload Book List";
             btnReload.UseVisualStyleBackColor = true;
@@ -184,9 +185,10 @@
             flowLayoutPanel_Buttons.Controls.Add(btnModifyBook);
             flowLayoutPanel_Buttons.Controls.Add(btnDeleteBook);
             flowLayoutPanel_Buttons.Controls.Add(btnScanBook);
+            flowLayoutPanel_Buttons.Controls.Add(btnPricelist);
             flowLayoutPanel_Buttons.Location = new Point(12, 471);
             flowLayoutPanel_Buttons.Name = "flowLayoutPanel_Buttons";
-            flowLayoutPanel_Buttons.Size = new Size(800, 54);
+            flowLayoutPanel_Buttons.Size = new Size(959, 54);
             flowLayoutPanel_Buttons.TabIndex = 14;
             flowLayoutPanel_Buttons.WrapContents = false;
             // 
@@ -211,11 +213,21 @@
             lblTotalStocks.TabIndex = 17;
             lblTotalStocks.Text = ".";
             // 
+            // btnPricelist
+            // 
+            btnPricelist.Location = new Point(795, 5);
+            btnPricelist.Margin = new Padding(5);
+            btnPricelist.Name = "btnPricelist";
+            btnPricelist.Size = new Size(148, 43);
+            btnPricelist.TabIndex = 11;
+            btnPricelist.Text = "Generate Pricelist";
+            btnPricelist.UseVisualStyleBackColor = true;
+            // 
             // ImportBook
             // 
             AutoScaleDimensions = new SizeF(8F, 20F);
             AutoScaleMode = AutoScaleMode.Font;
-            ClientSize = new Size(1157, 582);
+            ClientSize = new Size(1236, 582);
             Controls.Add(lblTotalStocks);
             Controls.Add(lblSuggestion);
             Controls.Add(flowLayoutPanel_Buttons);
@@ -227,7 +239,7 @@
             Controls.Add(dgvBookList);
             Name = "ImportBook";
             StartPosition = FormStartPosition.CenterScreen;
-            Text = "INVENTORY";
+            Text = "NCB INVENTORY";
             FormClosing += ImportBook_FormClosing;
             Load += ImportBook_Load;
             ((System.ComponentModel.ISupportInitialize)dgvBookList).EndInit();
@@ -252,5 +264,6 @@
         private FlowLayoutPanel flowLayoutPanel_Buttons;
         private Label lblSuggestion;
         private Label lblTotalStocks;
+        private Button btnPricelist;
     }
 }

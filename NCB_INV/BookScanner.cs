@@ -73,6 +73,17 @@ namespace NCB_INV
 
         private static async Task ProcessExcelBulkUpdate(bool isStockIn)
         {
+            var resultCheck = MessageBox.Show("Do you have the formatted Excel Template for this bulk process?",
+                "Template Check", MessageBoxButtons.YesNoCancel, MessageBoxIcon.Question);
+
+            if (resultCheck == DialogResult.Cancel) return;
+
+            if (resultCheck == DialogResult.No)
+            {
+                GenerateBulkScannerTemplate();
+                return;
+            }
+
             OpenFileDialog ofd = new() { Filter = "Excel Files|*.xlsx;*.xls" };
 
             if (ofd.ShowDialog() == DialogResult.OK)
@@ -80,7 +91,6 @@ namespace NCB_INV
                 string excelName = Path.GetFileNameWithoutExtension(ofd.FileName);
                 int updatedCount = 0;
                 int failCount = 0;
-
                 StringBuilder tableRows = new();
                 var bulkList = new List<Book>();
 
@@ -92,43 +102,46 @@ namespace NCB_INV
                     using (var reader = ExcelReaderFactory.CreateReader(stream))
                     {
                         var result = reader.AsDataSet();
+                        if (result.Tables.Count == 0) return;
+
                         var table = result.Tables[0];
 
                         var groupedData = table.AsEnumerable()
-                        .Skip(1)
-                        .Where(r => r[0] != DBNull.Value && !string.IsNullOrWhiteSpace(r[0].ToString()))
-                        .GroupBy(r => {
-                            string raw = r[0].ToString().Trim();
-                            
-                            if (double.TryParse(raw, out double d))
+                            .Skip(1)
+                            .Where(r => r[0] != DBNull.Value && !string.IsNullOrWhiteSpace(r[0].ToString()))
+                            .GroupBy(r =>
                             {
-                                return d.ToString("F0");
-                            }
-                            return raw.Replace("-", "");
-                        });
+                                string raw = r[0].ToString().Trim()
+                                             .Replace("=", "").Replace("\"", "")
+                                             .Replace("-", "").Replace(" ", "");
+
+                                if (double.TryParse(raw, out double d))
+                                {
+                                    return d.ToString("F0");
+                                }
+                                return raw;
+                            });
 
                         foreach (var group in groupedData)
                         {
                             string isbn = group.Key;
                             int countInExcel = group.Count();
-
                             Book? book = DBConnection.GetLocalBookByISBN(isbn);
 
                             if (book != null)
                             {
                                 int totalChange = isStockIn ? countInExcel : -countInExcel;
-
                                 book.Qty += totalChange;
                                 book.LastModified = DateTime.Now;
                                 bulkList.Add(book);
                                 updatedCount += countInExcel;
 
                                 tableRows.AppendLine($@"
-                        <tr>
-                            <td>{book.ISBN}</td>
-                            <td>{book.Title}</td>
-                            <td style='color: {(isStockIn ? "green" : "blue")}; font-weight: bold;'>{(isStockIn ? "+" : "-")}{countInExcel}</td>
-                        </tr>");
+                            <tr>
+                                <td>{book.ISBN}</td>
+                                <td>{book.Title}</td>
+                                <td style='color: {(isStockIn ? "green" : "blue")}; font-weight: bold;'>{(isStockIn ? "+" : "-")}{countInExcel}</td>
+                            </tr>");
 
                                 if (bulkList.Count >= 5000)
                                 {
@@ -150,15 +163,7 @@ namespace NCB_INV
                     {
                         await DBConnection.ExecuteDeltaSync();
                         string displayName = DBConnection.CurrentSession.User?.DisplayName ?? "Warehouse User";
-
-                        DBConnection.LogTransaction(
-                            "BULK_IMPORT",
-                            $"Excel: {excelName}",
-                            isStockIn ? updatedCount : -updatedCount,
-                            "Report Generated",
-                            isStockIn ? "Bulk Stock-In" : "Bulk Release",
-                            displayName
-                        );
+                        DBConnection.LogTransaction("BULK_IMPORT", $"Excel: {excelName}", isStockIn ? updatedCount : -updatedCount, "Report Generated", isStockIn ? "Bulk Stock-In" : "Bulk Release", displayName);
                     }
 
                     string reportTitle = isStockIn ? "BULK STOCK-IN" : "BULK RELEASE";
@@ -169,12 +174,35 @@ namespace NCB_INV
                 {
                     MessageBox.Show("Process Error: " + ex.Message);
                 }
-                finally
-                {
-                    Cursor.Current = Cursors.Default;
-                }
+                finally { Cursor.Current = Cursors.Default; }
             }
         }
+
+        private static void GenerateBulkScannerTemplate()
+        {
+            SaveFileDialog sfd = new() { Filter = "Excel Workbook|*.xlsx", FileName = "Bulk_ImportorRelease_Template.xlsx" };
+            if (sfd.ShowDialog() == DialogResult.OK)
+            {
+                using (var workbook = new ClosedXML.Excel.XLWorkbook())
+                {
+                    var worksheet = workbook.Worksheets.Add("Template");
+                    worksheet.Cell(1, 1).Value = "ISBN";
+                    worksheet.Cell(1, 2).Value = "QTY";
+                    worksheet.Cell(1, 3).Value = "Title (Optional)";
+
+                    worksheet.Column(1).Style.NumberFormat.Format = "0";
+
+                    worksheet.Cell(2, 1).Value = 9786218486133;
+                    worksheet.Cell(2, 2).Value = 1;
+                    worksheet.Cell(2, 3).Value = "Sample Book Title";
+
+                    workbook.SaveAs(sfd.FileName);
+                }
+                Process.Start(new ProcessStartInfo(sfd.FileName) { UseShellExecute = true });
+            }
+        }
+
+
 
         private static void GenerateAndOpenReport(string html, bool isStockIn)
         {
