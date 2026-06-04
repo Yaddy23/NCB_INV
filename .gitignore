@@ -361,3 +361,6 @@ MigrationBackup/
 
 # Fody - auto-generated XML schema
 FodyWeavers.xsd
+/NCB_INV/Properties/Settings.Designer.cs
+/NCB_INV/Properties/Settings.settings
+/NCB_INV/App.config
