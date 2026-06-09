@@ -61,14 +61,14 @@ namespace NCB_INV
             }
         }
 
-        private void btnImport_Click(object sender, EventArgs e)
+        private async void btnImport_Click(object sender, EventArgs e)
         {
-            ProcessExcelBulkUpdate(true); // stock-in
+            await ProcessExcelBulkUpdate(true); // stock-in
         }
 
-        private void btnOut_Click(object sender, EventArgs e)
+        private async void btnOut_Click(object sender, EventArgs e)
         {
-            ProcessExcelBulkUpdate(false); // release
+            await ProcessExcelBulkUpdate(false); // release
         }
 
         private static async Task ProcessExcelBulkUpdate(bool isStockIn)

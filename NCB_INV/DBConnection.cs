@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Data;
 using System.Net.Http;
+using System.Runtime.InteropServices.Marshalling;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.RegularExpressions;
@@ -21,6 +22,8 @@ namespace NCB_INV
         private static readonly IMongoCollection<Book>? _bookCollection;
         private static readonly IMongoDatabase? _database;
         private static readonly string sqliteConn = "Data Source=local_inventory.db;";
+        private static readonly HttpClient client1 = new HttpClient();
+        
 
         static DBConnection()
         {
@@ -29,6 +32,7 @@ namespace NCB_INV
                 var client = new MongoClient(connString);
                 _database = client.GetDatabase("NCB_INVENTORY");
                 _bookCollection = _database.GetCollection<Book>("Books");
+                client1.DefaultRequestHeaders.Add("Yad", "Software");
             }
             catch (Exception ex)
             {
@@ -52,14 +56,11 @@ namespace NCB_INV
         {
             string cleanIsbn = isbn.Replace("-", "").Replace(" ", "").Trim();
 
-            using HttpClient client = new();
-
             try
             {
-                client.DefaultRequestHeaders.Add("Yad", "Software");
 
                 string url = $"https://www.googleapis.com/books/v1/volumes?q=isbn:{cleanIsbn}";
-                string response = await client.GetStringAsync(url);
+                string response = await client1.GetStringAsync(url);
 
                 System.Diagnostics.Debug.WriteLine("API Response: " + response);
 
@@ -110,13 +111,11 @@ namespace NCB_INV
         {
             string cleanIsbn = isbn.Replace("-", "").Replace(" ", "").Trim();
 
-            using HttpClient client = new();
             try
             {
-                client.DefaultRequestHeaders.Add("Yad", "Software");
 
                 string url = $"https://openlibrary.org/api/books?bibkeys=ISBN:{cleanIsbn}&format=json&jscmd=data";
-                string response = await client.GetStringAsync(url);
+                string response = await client1.GetStringAsync(url);
                 JObject json = JObject.Parse(response);
 
                 string key = $"ISBN:{cleanIsbn}";
@@ -333,7 +332,7 @@ namespace NCB_INV
         private static int GetOrCreateEntity(SqliteConnection conn, SqliteTransaction trans, string tableName, string name)
         {
 
-            if (string.IsNullOrWhiteSpace(name)) return -1;
+            if (string.IsNullOrWhiteSpace(name)) name = "Unknown";
 
             string cleanName = Normalize(name);
             string col = tableName.TrimEnd('s') + "ID";
@@ -614,22 +613,35 @@ namespace NCB_INV
             return ToDataTable(combined);
         }
 
-        public static DataTable SearchBooks(string searchTerm)
+        public static async Task<DataTable> GetInventoryAsync()
         {
-            var cloudList = new List<Book>();
-            List<Book> localList = GetLocalBooks(searchTerm);
+            return await Task.Run(() => GetInventory());
+        }
 
-            if (IsCloudAvailable())
+        public static List<Book> ConvertDataTableToList(DataTable table)
+        {
+            var list = new List<Book>();
+            foreach (DataRow row in table.Rows)
             {
-                var filter = Builders<Book>.Filter.Regex(b => b.Title, new BsonRegularExpression(searchTerm, "i")) |
-                             Builders<Book>.Filter.Regex(b => b.ISBN, new BsonRegularExpression(searchTerm, "i"));
+                var book = new Book(
+                    row["Subject"].ToString(),
+                    row["ISBN"].ToString(),
+                    row["Title"].ToString(),
+                    row["Edition"].ToString(),
+                    row["Year"].ToString(),
+                    "0",
+                    row["Bind"].ToString(),
+                    Convert.ToInt32(row["Qty"]),
+                    Convert.ToDecimal(row["Price"]),
+                    "0",
+                    Convert.ToDateTime(row["LastModified"])
+                );
 
-                try { cloudList = _bookCollection.Find(filter).ToList(); }
-                catch { }
+                book.AuthorName = row["Author"].ToString();
+                book.PublisherName = row["Publisher"].ToString();
+                list.Add(book);
             }
-
-            var combined = localList.Union(cloudList, new BookIsbnComparer()).ToList();
-            return ToDataTable(combined);
+            return list;
         }
 
         public static List<Book> GetLocalBooks(string filter = "")
@@ -753,13 +765,13 @@ namespace NCB_INV
                         Subject=$subject, Title=$title, Edition=$edition, Year=$year, AuthorID=$authorId, Bind=$bind, 
                         Price=$price, PublisherID=$pubId, Qty=$qty, LastModified=$date, SyncRequired=$sync;";
 
-                    cmd.Parameters.AddWithValue("$subject", book.Subject ?? "");
+                    cmd.Parameters.AddWithValue("$subject", book.Subject.ToUpper() ?? "");
                     cmd.Parameters.AddWithValue("$isbn", book.ISBN ?? "");
-                    cmd.Parameters.AddWithValue("$title", book.Title ?? "");
-                    cmd.Parameters.AddWithValue("$edition", book.Edition ?? "");
-                    cmd.Parameters.AddWithValue("$year", book.Year ?? "");
+                    cmd.Parameters.AddWithValue("$title", book.Title.ToUpper() ?? "");
+                    cmd.Parameters.AddWithValue("$edition", book.Edition.ToUpper() ?? "");
+                    cmd.Parameters.AddWithValue("$year", book.Year.ToUpper() ?? "");
                     cmd.Parameters.AddWithValue("$authorId", authorId);
-                    cmd.Parameters.AddWithValue("$bind", book.Bind ?? "");
+                    cmd.Parameters.AddWithValue("$bind", book.Bind.ToUpper() ?? "");
                     cmd.Parameters.AddWithValue("$qty", book.Qty);
                     cmd.Parameters.AddWithValue("$price", book.Price);
                     cmd.Parameters.AddWithValue("$pubId", publisherId);
@@ -811,13 +823,13 @@ namespace NCB_INV
                         int authorId = GetOrCreateEntity(connection, transaction, "Authors", b.AuthorId);
                         int publisherId = GetOrCreateEntity(connection, transaction, "Publishers", b.PublisherId);
 
-                        cmd.Parameters["$subject"].Value = b.Subject ?? (object)DBNull.Value;
+                        cmd.Parameters["$subject"].Value = b.Subject.ToUpper() ?? (object)DBNull.Value;
                         cmd.Parameters["$isbn"].Value = b.ISBN ?? (object)DBNull.Value;
-                        cmd.Parameters["$title"].Value = b.Title ?? (object)DBNull.Value;
-                        cmd.Parameters["$edition"].Value = b.Edition ?? (object)DBNull.Value;
-                        cmd.Parameters["$year"].Value = b.Year ?? (object)DBNull.Value;
+                        cmd.Parameters["$title"].Value = b.Title.ToUpper() ?? (object)DBNull.Value;
+                        cmd.Parameters["$edition"].Value = b.Edition.ToUpper() ?? (object)DBNull.Value;
+                        cmd.Parameters["$year"].Value = b.Year.ToUpper() ?? (object)DBNull.Value;
                         cmd.Parameters["$authorId"].Value = authorId > 0 ? (object)authorId : DBNull.Value;
-                        cmd.Parameters["$bind"].Value = b.Bind ?? (object)DBNull.Value;
+                        cmd.Parameters["$bind"].Value = b.Bind.ToUpper() ?? (object)DBNull.Value;
                         cmd.Parameters["$price"].Value = b.Price;
                         cmd.Parameters["$qty"].Value = b.Qty;
                         cmd.Parameters["$publisherId"].Value = publisherId > 0 ? (object)publisherId : DBNull.Value;
@@ -1012,7 +1024,7 @@ namespace NCB_INV
         }
         // Rebuilds the database file into a compact version
 
-        private static DataTable ToDataTable(List<Book> books)
+        public static DataTable ToDataTable(List<Book> books)
         {
             DataTable dt = new();
             dt.Columns.Add("Subject");
@@ -1025,10 +1037,11 @@ namespace NCB_INV
             dt.Columns.Add("Qty", typeof(int));
             dt.Columns.Add("Price", typeof(decimal));
             dt.Columns.Add("Publisher");
+            dt.Columns.Add("LastModified", typeof(DateTime));
 
             foreach (var b in books)
             {
-                dt.Rows.Add(b.Subject, b.ISBN, b.Title, b.Edition, b.Year, b.AuthorName, b.Bind, b.Qty, b.Price, b.PublisherName);
+                dt.Rows.Add(b.Subject, b.ISBN, b.Title, b.Edition, b.Year, b.AuthorName, b.Bind, b.Qty, b.Price, b.PublisherName, b.LastModified);
             }
             return dt;
         }

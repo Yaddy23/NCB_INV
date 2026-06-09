@@ -16,6 +16,7 @@ namespace NCB_INV
     {
         private System.Windows.Forms.Timer syncTimer;
         private System.Windows.Forms.Timer conTimer;
+        private readonly System.Windows.Forms.Timer _searchDebouncer = new() { Interval = 300 };
         public ImportBook()
         {
             InitializeComponent();
@@ -28,6 +29,41 @@ namespace NCB_INV
             conTimer.Interval = 5000;
             conTimer.Tick += ConTimer_Tick;
             conTimer.Start();
+            _searchDebouncer.Tick += Debouncer_Tick;
+        }
+
+        private async void Debouncer_Tick(object? sender, EventArgs e)
+        {
+            _searchDebouncer.Stop();
+            string query = txtSearch.Text.Trim();
+            if (string.IsNullOrEmpty(query))
+            {
+                RefreshBookList();
+                lblSuggestion.Text = "";
+                return;
+            }
+
+            DataTable BooksInventory = await DBConnection.GetInventoryAsync();
+
+            List<Book> allbooks = ConvertDataTableToList(BooksInventory);
+
+            var (results, suggestion) = SearchEngine.FuzzySearch(query, allbooks);
+
+            if (results != null && results.Count > 0)
+            {
+                dgvBookList.DataSource = DBConnection.ToDataTable(results);
+                lblSuggestion.Visible = false;
+            }
+            else if (!string.IsNullOrEmpty(suggestion))
+            {
+                lblSuggestion.Text = $"Did you mean: {suggestion.Replace("\r", "").Replace("\n", " ")}?";
+                lblSuggestion.Visible = true;
+                dgvBookList.DataSource = null;
+            }
+            else
+            {
+                dgvBookList.DataSource = null;
+            }
 
         }
 
@@ -41,11 +77,9 @@ namespace NCB_INV
         {
             try
             {
-                using (Ping ping = new Ping())
-                {
-                    PingReply reply = ping.Send("8.8.8.8", 2000);
-                    return reply.Status == IPStatus.Success;
-                }
+                using Ping ping = new();
+                PingReply reply = ping.Send("8.8.8.8", 2000);
+                return reply.Status == IPStatus.Success;
             }
             catch { return false; }
         }
@@ -121,11 +155,13 @@ namespace NCB_INV
         {
             DataTable freshData = DBConnection.GetInventory();
 
+
             int total = freshData.AsEnumerable().Sum(r => r.Field<int?>("Qty") ?? 0);
             lblTotalStocks.Text = $"Total Stocks: {total}";
 
             //Re - bind the data source
             dgvBookList.DataSource = freshData;
+            dgvBookList.Columns["LastModified"].Visible = false;
         }
 
         private void ApplyPermissions()
@@ -200,7 +236,7 @@ namespace NCB_INV
                 int oldQty = row.Cells["Qty"].Value != DBNull.Value ? Convert.ToInt32(row.Cells["Qty"].Value) : 0;
                 decimal price = row.Cells["Price"].Value != DBNull.Value ? Convert.ToDecimal(row.Cells["Price"].Value) : 0m;
 
-                Book selected = new Book(
+                Book selected = new(
                     row.Cells["Subject"].Value?.ToString() ?? "",
                     row.Cells["ISBN"].Value?.ToString() ?? "",
                     row.Cells["Title"].Value?.ToString() ?? "",
@@ -291,7 +327,7 @@ namespace NCB_INV
                         uniqueAuthors.Add(authorName);
                         uniquePublishers.Add(pubName);
 
-                        Book excelBook = new Book(
+                        Book excelBook = new(
                             row[0]?.ToString() ?? "",
                             cleanIsbn,
                             row[2]?.ToString() ?? "",
@@ -339,11 +375,11 @@ namespace NCB_INV
         }
 
         // Helper method to generate the template
-        private void GenerateExcelTemplate()
+        private static void GenerateExcelTemplate()
         {
             SaveFileDialog sfd = new()
             {
-                Filter = "Excel Workbook|*.xlsx",
+                Filter = "Excel Workbook|*.xlsx;*.xls",
                 FileName = "Book_Import_Template.xlsx"
             };
 
@@ -447,38 +483,8 @@ namespace NCB_INV
 
         private void txtSearch_TextChanged(object sender, EventArgs e)
         {
-            string query = txtSearch.Text.Trim();
-
-            if (string.IsNullOrEmpty(query))
-            {
-                RefreshBookList();
-
-                lblSuggestion.Visible = false;
-                return;
-            }
-
-            var allLocalBooks = DBConnection.GetLocalBooks();
-            var (results, suggestion) = SearchEngine.FuzzySearch(query, allLocalBooks);
-
-            if (results.Any())
-            {
-                dgvBookList.DataSource = results;
-                lblSuggestion.Visible = false;
-            }
-            else if (!string.IsNullOrEmpty(suggestion))
-            {
-                string cleanSuggestion = suggestion.Replace("\r", "").Replace("\n", " ");
-
-                lblSuggestion.Text = $"Did you mean: {cleanSuggestion}?";
-                lblSuggestion.Visible = true;
-                lblSuggestion.MaximumSize = new Size(0, 0);
-                dgvBookList.DataSource = null;
-            }
-            else
-            {
-                lblSuggestion.Visible = false;
-                dgvBookList.DataSource = null;
-            }
+            _searchDebouncer.Stop();
+            _searchDebouncer.Start();
         }
 
         private void lblSuggestion_Click(object sender, EventArgs e)
@@ -491,9 +497,5 @@ namespace NCB_INV
             txtSearch.Text = suggestedWord;
         }
 
-        private void button1_Click(object sender, EventArgs e)
-        {
-            //DeleteHexNames();
-        }
     }
 }

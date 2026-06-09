@@ -15,7 +15,7 @@ namespace NCB_INV
         [BsonRepresentation(BsonType.ObjectId)]
         public ObjectId Id { get; set; }
         public int SqliteId { get; set; }
-        public string Name { get; set; }
+        public string ?Name { get; set; }
     }
 
     public class Publisher
@@ -24,7 +24,7 @@ namespace NCB_INV
         [BsonRepresentation(BsonType.ObjectId)]
         public ObjectId Id { get; set; }
         public int SqliteId { get; set; }
-        public string Name { get; set; }
+        public string ?Name { get; set; }
     }
 
     [BsonIgnoreExtraElements]
