@@ -38,7 +38,7 @@ namespace NCB_INV
             string query = txtSearch.Text.Trim();
             if (string.IsNullOrEmpty(query))
             {
-                RefreshBookList();
+                await RefreshBookList();
                 lblSuggestion.Text = "";
                 return;
             }
@@ -47,7 +47,7 @@ namespace NCB_INV
 
             List<Book> allbooks = ConvertDataTableToList(BooksInventory);
 
-            var (results, suggestion) = SearchEngine.FuzzySearch(query, allbooks);
+            var (results, suggestion) = await Task.Run(() => SearchEngine.FuzzySearch(query, allbooks));
 
             if (results != null && results.Count > 0)
             {
@@ -98,7 +98,6 @@ namespace NCB_INV
             }
         }
 
-
         private void SetupAutoSync()
         {
 
@@ -111,12 +110,14 @@ namespace NCB_INV
         private bool isSyncing = false;
         private async Task RunBackgroundSync()
         {
-            if (isSyncing || !DBConnection.IsCloudAvailable())
+            bool isCloudUp = await Task.Run(() => DBConnection.IsCloudAvailable());
+
+            if (isSyncing || !isCloudUp)
             {
-                if (!DBConnection.IsCloudAvailable())
+                if (!isCloudUp)
                 {
-                    lblSyncStatus.Text = "Status: Offline (Local Only)";
-                    lblSyncStatus.ForeColor = Color.OrangeRed;
+                    lblSyncStatus.Text = isCloudUp ? "Status: Sync in Progress..." : "Status: Cloud Unreachable";
+                    lblSyncStatus.ForeColor = isCloudUp ? Color.Orange : Color.Red;
                 }
                 return;
             }
@@ -129,12 +130,10 @@ namespace NCB_INV
             {
                 await Task.Run(async () => await DBConnection.ExecuteDeltaSync());
 
-                this.Invoke((MethodInvoker)delegate
-                 {
-                     RefreshBookList();
-                     lblSyncStatus.Text = $"Last Sync: {DateTime.Now:hh:mm:ss tt}";
-                     lblSyncStatus.ForeColor = Color.Green;
-                 });
+                await RefreshBookList();
+                lblSyncStatus.Text = $"Last Sync: {DateTime.Now:hh:mm:ss tt}";
+                lblSyncStatus.ForeColor = Color.Green;
+
             }
             catch (Exception ex)
             {
@@ -151,9 +150,11 @@ namespace NCB_INV
             }
         }
 
-        private void RefreshBookList()
+        private async Task RefreshBookList()
         {
-            DataTable freshData = DBConnection.GetInventory();
+            this.Cursor = Cursors.WaitCursor;
+
+            DataTable freshData = await Task.Run(() => DBConnection.GetInventory());
 
 
             int total = freshData.AsEnumerable().Sum(r => r.Field<int?>("Qty") ?? 0);
@@ -162,6 +163,8 @@ namespace NCB_INV
             //Re - bind the data source
             dgvBookList.DataSource = freshData;
             dgvBookList.Columns["LastModified"].Visible = false;
+
+            this.Cursor = Cursors.Default;
         }
 
         private void ApplyPermissions()
@@ -187,8 +190,7 @@ namespace NCB_INV
             dgvBookList.ColumnHeadersDefaultCellStyle.BackColor = primaryNavy;
             dgvBookList.ColumnHeadersDefaultCellStyle.ForeColor = Color.White;
             ApplyPermissions();
-            RefreshBookList();
-
+            await RefreshBookList();
             await RunBackgroundSync();
 
 
@@ -199,35 +201,35 @@ namespace NCB_INV
             RefreshBookList();
         }
 
-        private void btnAddBook_Click(object sender, EventArgs e)
+        private async void btnAddBook_Click(object sender, EventArgs e)
         {
             using var editor = new BookEditorForm(null);
 
             if (editor.ShowDialog() == DialogResult.OK)
             {
-                if (DBConnection.DoesISBNExist(editor.BookData.ISBN))
+                bool exists = await Task.Run(() => DBConnection.DoesISBNExist(editor.BookData.ISBN));
+                if (exists)
                 {
+                    this.Cursor = Cursors.Default;
                     MessageBox.Show("Error: A book with this ISBN already exists in the cloud!",
                                     "Duplicate Found", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 }
                 else
                 {
-                    DBConnection.SaveBook(editor.BookData, editor.BookData.AuthorId, editor.BookData.PublisherId);
+                    await Task.Run(() =>
+                    {
+                        DBConnection.SaveBook(editor.BookData, editor.BookData.AuthorId, editor.BookData.PublisherId);
+                        DBConnection.LogTransaction(
+                            editor.BookData.ISBN, editor.BookData.Title, editor.BookData.Qty,
+                            editor.BookData.Qty.ToString(), "New Book Added", CurrentSession.User.DisplayName);
+                    });
 
-                    DBConnection.LogTransaction(
-                    editor.BookData.ISBN,
-                    editor.BookData.Title,
-                    editor.BookData.Qty,
-                    editor.BookData.Qty.ToString(),
-                    "New Book Added",
-                    CurrentSession.User.DisplayName
-            );
-                    RefreshBookList();
+                    await RefreshBookList();
                 }
             }
         }
 
-        private void btnModifyBook_Click(object sender, EventArgs e)
+        private async void btnModifyBook_Click(object sender, EventArgs e)
         {
             if (dgvBookList.SelectedRows.Count > 0)
             {
@@ -253,17 +255,14 @@ namespace NCB_INV
                 using var editor = new BookEditorForm(selected);
                 if (editor.ShowDialog() == DialogResult.OK)
                 {
-                    DBConnection.SaveBook(editor.BookData, editor.BookData.AuthorId, editor.BookData.PublisherId);
-
-                    int change = editor.BookData.Qty - oldQty;
-                    DBConnection.LogTransaction(
-                        editor.BookData.ISBN,
-                        editor.BookData.Title,
-                        change,
-                        editor.BookData.Qty.ToString(),
-                        "Stock Modified",
-                        DBConnection.CurrentSession.User?.DisplayName ?? "Unknown"
-                    );
+                    await Task.Run(() =>
+                    {
+                        int change = editor.BookData.Qty - oldQty;
+                        DBConnection.SaveBook(editor.BookData, editor.BookData.AuthorId, editor.BookData.PublisherId);
+                        DBConnection.LogTransaction(
+                            editor.BookData.ISBN, editor.BookData.Title, editor.BookData.Qty,
+                            editor.BookData.Qty.ToString(), "New Book Added", CurrentSession.User.DisplayName);
+                    });
 
                     RefreshBookList();
                 }
@@ -426,7 +425,7 @@ namespace NCB_INV
             }
         }
 
-        private void btnDeleteBook_Click(object sender, EventArgs e)
+        private async void btnDeleteBook_Click(object sender, EventArgs e)
         {
             if (dgvBookList.SelectedRows.Count > 0)
             {
@@ -437,16 +436,17 @@ namespace NCB_INV
 
                 if (MessageBox.Show($"Delete '{title}'?", "Confirm", MessageBoxButtons.YesNo) == DialogResult.Yes)
                 {
-                    DBConnection.DeleteBook(isbn);
-
-                    DBConnection.LogTransaction(
-                        isbn,
-                        title,
-                        -lastQty,
-                        "0",
-                        "Book Deleted",
-                        CurrentSession.User.DisplayName
-                    );
+                    await Task.Run(() =>
+                    {
+                        DBConnection.DeleteBook(isbn);
+                        DBConnection.LogTransaction(
+                            isbn,
+                            title,
+                            -lastQty,
+                            "0",
+                            "Book Deleted",
+                            CurrentSession.User.DisplayName);
+                    });
 
                     RefreshBookList();
                 }
@@ -497,5 +497,12 @@ namespace NCB_INV
             txtSearch.Text = suggestedWord;
         }
 
+        private void dgvBookList_DataBindingComplete(object sender, DataGridViewBindingCompleteEventArgs e)
+        {
+            foreach (DataGridViewColumn column in dgvBookList.Columns)
+            {
+                column.SortMode = DataGridViewColumnSortMode.NotSortable;
+            }
+        }
     }
 }

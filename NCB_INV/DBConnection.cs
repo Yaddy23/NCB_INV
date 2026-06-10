@@ -7,6 +7,7 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
+using DocumentFormat.OpenXml.Office2016.Drawing.Charts;
 using Microsoft.Data.Sqlite;
 using MongoDB.Bson;
 using MongoDB.Driver;
@@ -382,7 +383,16 @@ namespace NCB_INV
 
                 await PushLocalChangesToCloud(bookCollection);
 
-                var cloudBooks = await bookCollection.Find(new BsonDocument()).ToListAsync();
+                DateTime lastSync = GetLocalLastSyncDate();
+
+                var filter = Builders<Book>.Filter.Gt(b => b.LastModified, lastSync);
+                var cloudBooks = await bookCollection.Find(filter).ToListAsync();
+
+                if(cloudBooks.Count == 0)
+                {
+                    System.Diagnostics.Debug.WriteLine("Delta Sync: No new cloud changes since last sync.");
+                    return;
+                }
 
                 using var conn = new SqliteConnection(sqliteConn);
                 conn.Open();
@@ -404,7 +414,11 @@ namespace NCB_INV
                         UpdateLocalFromCloudInternal(cBook, conn, transaction, authorName, pubName);
                     }
 
-                    var cloudISBNset = new HashSet<string>(cloudBooks.Select(b => b.ISBN));
+
+                    var allCloudIsbns = await bookCollection.Find(new BsonDocument()).Project(b => b.ISBN).ToListAsync();
+
+                    var cloudISBNset = new HashSet<string>(allCloudIsbns);
+
                     var localisbns = new List<string>();
 
                     using (var getcmd = conn.CreateCommand())
@@ -443,6 +457,16 @@ namespace NCB_INV
             {
                 System.Diagnostics.Debug.WriteLine("Delta Sync General Error: " + ex.Message);
             }
+        }
+
+        private static DateTime GetLocalLastSyncDate()
+        {
+            using var conn = new SqliteConnection(sqliteConn);
+            conn.Open();
+            using var cmd = conn.CreateCommand();
+            cmd.CommandText = "SELECT MAX(LastModified) from OfflineBooks";
+            var result = cmd.ExecuteScalar();
+            return result != DBNull.Value ? Convert.ToDateTime(result) : DateTime.MinValue;
         }
 
         public static async Task PushLocalChangesToCloud(IMongoCollection<Book> bookCollection)
@@ -579,38 +603,9 @@ namespace NCB_INV
 
         public static DataTable GetInventory()
         {
-            var cloudList = new List<Book>();
             List<Book> localList = GetLocalBooks();
-            bool online = IsCloudAvailable();
 
-            if (online)
-            {
-                try
-                {
-                    cloudList = _bookCollection.Find(new BsonDocument()).ToList();
-
-                    var authors = _database.GetCollection<Author>("Authors").Find(new BsonDocument()).ToList();
-                    var publishers = _database.GetCollection<Publisher>("Publishers").Find(new BsonDocument()).ToList();
-
-                    var authorDict = authors.ToDictionary(a => a.Id.ToString(), a => a.Name);
-                    var pubDict = publishers.ToDictionary(p => p.Id.ToString(), p => p.Name);
-
-                    foreach (var b in cloudList)
-                    {
-                        b.AuthorName = authorDict.GetValueOrDefault(b.AuthorId, "Unknown").ToUpper();
-                        b.PublisherName = pubDict.GetValueOrDefault(b.PublisherId, "Unknown").ToUpper();
-                    }
-
-                }
-                catch(Exception e) { Console.WriteLine($"Error fetching cloud data: {e.Message}"); }
-            }
-
-            var combined = (online
-                ? cloudList.Union(localList, new BookIsbnComparer())
-                : localList.Union(cloudList, new BookIsbnComparer()))
-                .ToList();
-
-            return ToDataTable(combined);
+            return ToDataTable(localList);
         }
 
         public static async Task<DataTable> GetInventoryAsync()
@@ -765,13 +760,13 @@ namespace NCB_INV
                         Subject=$subject, Title=$title, Edition=$edition, Year=$year, AuthorID=$authorId, Bind=$bind, 
                         Price=$price, PublisherID=$pubId, Qty=$qty, LastModified=$date, SyncRequired=$sync;";
 
-                    cmd.Parameters.AddWithValue("$subject", book.Subject.ToUpper() ?? "");
+                    cmd.Parameters.AddWithValue("$subject", book.Subject ?? "");
                     cmd.Parameters.AddWithValue("$isbn", book.ISBN ?? "");
-                    cmd.Parameters.AddWithValue("$title", book.Title.ToUpper() ?? "");
-                    cmd.Parameters.AddWithValue("$edition", book.Edition.ToUpper() ?? "");
-                    cmd.Parameters.AddWithValue("$year", book.Year.ToUpper() ?? "");
+                    cmd.Parameters.AddWithValue("$title", book.Title ?? "");
+                    cmd.Parameters.AddWithValue("$edition", book.Edition ?? "");
+                    cmd.Parameters.AddWithValue("$year", book.Year ?? "");
                     cmd.Parameters.AddWithValue("$authorId", authorId);
-                    cmd.Parameters.AddWithValue("$bind", book.Bind.ToUpper() ?? "");
+                    cmd.Parameters.AddWithValue("$bind", book.Bind ?? "");
                     cmd.Parameters.AddWithValue("$qty", book.Qty);
                     cmd.Parameters.AddWithValue("$price", book.Price);
                     cmd.Parameters.AddWithValue("$pubId", publisherId);
@@ -823,13 +818,13 @@ namespace NCB_INV
                         int authorId = GetOrCreateEntity(connection, transaction, "Authors", b.AuthorId);
                         int publisherId = GetOrCreateEntity(connection, transaction, "Publishers", b.PublisherId);
 
-                        cmd.Parameters["$subject"].Value = b.Subject.ToUpper() ?? (object)DBNull.Value;
+                        cmd.Parameters["$subject"].Value = b.Subject ?? (object)DBNull.Value;
                         cmd.Parameters["$isbn"].Value = b.ISBN ?? (object)DBNull.Value;
-                        cmd.Parameters["$title"].Value = b.Title.ToUpper() ?? (object)DBNull.Value;
-                        cmd.Parameters["$edition"].Value = b.Edition.ToUpper() ?? (object)DBNull.Value;
-                        cmd.Parameters["$year"].Value = b.Year.ToUpper() ?? (object)DBNull.Value;
+                        cmd.Parameters["$title"].Value = b.Title ?? (object)DBNull.Value;
+                        cmd.Parameters["$edition"].Value = b.Edition ?? (object)DBNull.Value;
+                        cmd.Parameters["$year"].Value = b.Year ?? (object)DBNull.Value;
                         cmd.Parameters["$authorId"].Value = authorId > 0 ? (object)authorId : DBNull.Value;
-                        cmd.Parameters["$bind"].Value = b.Bind.ToUpper() ?? (object)DBNull.Value;
+                        cmd.Parameters["$bind"].Value = b.Bind ?? (object)DBNull.Value;
                         cmd.Parameters["$price"].Value = b.Price;
                         cmd.Parameters["$qty"].Value = b.Qty;
                         cmd.Parameters["$publisherId"].Value = publisherId > 0 ? (object)publisherId : DBNull.Value;
