@@ -701,11 +701,6 @@ namespace NCB_INV
             return books;
         }
 
-        public static Book GetBookByISBN(string isbn)
-        {
-            return _bookCollection.Find(b => b.ISBN == isbn).FirstOrDefault();
-        }
-
         public static Book? GetLocalBookByISBN(string isbn)
         {
             if (string.IsNullOrWhiteSpace(isbn)) return null;
