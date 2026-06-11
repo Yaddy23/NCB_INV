@@ -528,7 +528,7 @@ namespace NCB_INV
                         .Set(b => b.Price, Convert.ToDecimal(reader["Price"]))
                         .Set(b => b.PublisherId, cloudPub.Id.ToString())
                         .Set(b => b.LastModified, Convert.ToDateTime(reader["LastModified"]))
-                        .Inc(b => b.Qty, Convert.ToInt32(reader["Qty"]));
+                        .Set(b => b.Qty, Convert.ToInt32(reader["Qty"]));
 
                     var result = await bookCollection.UpdateOneAsync(
                         b => b.ISBN == isbn,
@@ -553,7 +553,7 @@ namespace NCB_INV
                 foreach (var syncIsbn in syncedIsbns)
                 {
                     using var updateCmd = new SqliteCommand(
-                        "UPDATE OfflineBooks SET SyncRequired = 0, Qty = 0 WHERE ISBN = @isbn", conn, trans);
+                        "UPDATE OfflineBooks SET SyncRequired = 0 WHERE ISBN = @isbn", conn, trans);
 
                     updateCmd.Parameters.AddWithValue("@isbn", syncIsbn);
                     await updateCmd.ExecuteNonQueryAsync();
@@ -592,7 +592,7 @@ namespace NCB_INV
                 Title=$title, 
                 Edition=$edition, 
                 AuthorID=$authorId, 
-                Qty=0, 
+                Qty=$qty, 
                 Price=$price, 
                 PublisherID=$pubId, 
                 LastModified=$date, 

@@ -39,7 +39,7 @@ namespace NCB_INV
                 {
                     int oldQty = currentbook.Qty;
                     currentbook.Qty += 1;
-                    DBConnection.SaveBook(currentbook, currentbook.AuthorId, currentbook.PublisherId);
+                    DBConnection.SaveBook(currentbook, currentbook.AuthorName, currentbook.PublisherName);
 
                     lblTitle.Text = $"Title: {currentbook.Title}";
                     lblOldQty.Text = $"Previous Qty: {oldQty}";
