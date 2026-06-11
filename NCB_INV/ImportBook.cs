@@ -69,6 +69,14 @@ namespace NCB_INV
 
         }
 
+        private void EnableDoubleBuffering(DataGridView dgv)
+        {
+            typeof(DataGridView).InvokeMember("DoubleBuffered",
+                System.Reflection.BindingFlags.NonPublic | 
+                System.Reflection.BindingFlags.Instance | 
+                System.Reflection.BindingFlags.SetProperty,
+                null, dgv, new object[] { true });
+        }
         private async void ConTimer_Tick(object? sender, EventArgs e)
         {
             bool isConnected = await Task.Run(() => IsInternetAvailable());
@@ -164,13 +172,24 @@ namespace NCB_INV
             int total = freshData.AsEnumerable().Sum(r => r.Field<int?>("Qty") ?? 0);
             lblTotalStocks.Text = $"Total Stocks: {total}";
 
+            dgvBookList.SuspendLayout();
+
+            var previousSizeMode = dgvBookList.AutoSizeColumnsMode;
+            dgvBookList.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.None;
+            dgvBookList.RowHeadersWidthSizeMode = DataGridViewRowHeadersWidthSizeMode.DisableResizing;
             //Re - bind the data source
             dgvBookList.DataSource = freshData;
-            dgvBookList.Columns["LastModified"].Visible = false;
-            dgvBookList.Columns["Title"].FillWeight = 300;
-            dgvBookList.Columns["ISBN"].FillWeight = 120;
-            dgvBookList.Columns["Qty"].FillWeight = 50;
 
+            if (dgvBookList.Columns.Contains("LastModified"))
+            {
+                dgvBookList.Columns["LastModified"].Visible = false;
+                dgvBookList.Columns["Title"].FillWeight = 300;
+                dgvBookList.Columns["ISBN"].FillWeight = 120;
+                dgvBookList.Columns["Qty"].FillWeight = 50;
+            }
+
+            dgvBookList.AutoSizeColumnsMode = previousSizeMode;
+            dgvBookList.ResumeLayout();
 
             this.Cursor = Cursors.Default;
         }
@@ -199,6 +218,7 @@ namespace NCB_INV
             dgvBookList.ColumnHeadersDefaultCellStyle.ForeColor = Color.White;
             dgvBookList.VirtualMode = true;
             dgvBookList.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill;
+            EnableDoubleBuffering(dgvBookList);
 
             BackupLocalDatabase();
             ApplyPermissions();

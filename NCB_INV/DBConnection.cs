@@ -35,6 +35,13 @@ namespace NCB_INV
                 _database = client.GetDatabase("NCB_INVENTORY");
                 _bookCollection = _database.GetCollection<Book>("Books");
                 client1.DefaultRequestHeaders.Add("Yad", "Software");
+
+                var isbnIndex = new CreateIndexModel<Book>(Builders<Book>.IndexKeys.Ascending(b => b.ISBN));
+                _bookCollection.Indexes.CreateOne(isbnIndex);
+
+                var dateIndex = new CreateIndexModel<Book>(Builders<Book>.IndexKeys.Ascending(b => b.LastModified));
+                _bookCollection.Indexes.CreateOne(dateIndex);
+
             }
             catch (Exception ex)
             {
@@ -321,7 +328,16 @@ namespace NCB_INV
                     Role TEXT,
                     PasswordHash TEXT,
                     LastSync DATETIME
-                );";
+                );
+
+                CREATE INDEX IF NOT EXISTS idx_offlinebooks_isbn ON OfflineBooks(ISBN);
+
+                CREATE INDEX IF NOT EXISTS idx_offlinebooks_sync ON OfflineBooks(SyncRequired);
+
+                CREATE INDEX IF NOT EXISTS idx_authors_name ON Authors(Name);
+
+                CREATE INDEX IF NOT EXISTS idx_publishers_name ON Publishers(Name);
+            ";
 
             command.ExecuteNonQuery();
             transaction.Commit();
@@ -654,7 +670,7 @@ namespace NCB_INV
             if (!string.IsNullOrEmpty(filter))
             {
                 cmd.CommandText += " WHERE b.Title LIKE $f OR b.ISBN LIKE $f";
-                cmd.Parameters.AddWithValue("$f", $"%{filter}%");
+                cmd.Parameters.AddWithValue("$f", $"{filter}%");
             }
 
             using (var reader = cmd.ExecuteReader())
