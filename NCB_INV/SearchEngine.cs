@@ -33,7 +33,7 @@ namespace NCB_INV
 
         public static (List<Book> Results, string Suggestion) FuzzySearch(string query, List<Book> source)
         {
-            if (string.IsNullOrWhiteSpace(query)) return (new List<Book>(), null);
+            if (string.IsNullOrWhiteSpace(query)) return (new List<Book>(), null!);
             query = query.ToLower().Trim();
 
             var matches = source.Where(b =>
@@ -42,7 +42,7 @@ namespace NCB_INV
                 b.AuthorId.ToLower().Contains(query)
             ).ToList();
 
-            if (matches.Any()) return (matches, null);
+            if (matches.Any()) return (matches, null!);
 
             var bestSuggestion = source
                 .Select(b => {
@@ -63,7 +63,7 @@ namespace NCB_INV
                 .OrderByDescending(x => x.MaxSimilarity)
                 .FirstOrDefault();
 
-            return (new List<Book>(), bestSuggestion?.Book.Title);
+            return (new List<Book>(), bestSuggestion?.Book.Title!);
         }
     }
 

@@ -25,8 +25,10 @@ namespace NCB_INV
             this.MaximizeBox = false;
             this.StartPosition = FormStartPosition.CenterScreen;
 
-            conTimer = new System.Windows.Forms.Timer();
-            conTimer.Interval = 5000;
+            conTimer = new System.Windows.Forms.Timer
+            {
+                Interval = 5000
+            };
             conTimer.Tick += ConTimer_Tick;
             conTimer.Start();
             _searchDebouncer.Tick += Debouncer_Tick;
@@ -73,7 +75,7 @@ namespace NCB_INV
             UpdateUI(isConnected);
         }
 
-        private bool IsInternetAvailable()
+        private static bool IsInternetAvailable()
         {
             try
             {
@@ -101,8 +103,10 @@ namespace NCB_INV
         private void SetupAutoSync()
         {
 
-            syncTimer = new System.Windows.Forms.Timer();
-            syncTimer.Interval = 300000;
+            syncTimer = new System.Windows.Forms.Timer
+            {
+                Interval = 300000
+            };
             syncTimer.Tick += async (s, e) => await RunBackgroundSync();
             syncTimer.Start();
         }
@@ -204,12 +208,12 @@ namespace NCB_INV
 
         }
 
-        private async void btnReload_Click(object sender, EventArgs e)
+        private async void BtnReload_Click(object sender, EventArgs e)
         {
             await RefreshBookList();
         }
 
-        private async void btnAddBook_Click(object sender, EventArgs e)
+        private async void BtnAddBook_Click(object sender, EventArgs e)
         {
             using var editor = new BookEditorForm(null);
 
@@ -237,7 +241,7 @@ namespace NCB_INV
             }
         }
 
-        private async void btnModifyBook_Click(object sender, EventArgs e)
+        private async void BtnModifyBook_Click(object sender, EventArgs e)
         {
             if (dgvBookList.SelectedRows.Count > 0)
             {
@@ -279,7 +283,7 @@ namespace NCB_INV
                 }
             }
         }
-        private async void btnImport_Click(object sender, EventArgs e)
+        private async void BtnImport_Click(object sender, EventArgs e)
         {
             var resultCheck = MessageBox.Show("Do you have the formatted Excel template for import?",
             "Template Check", MessageBoxButtons.YesNoCancel, MessageBoxIcon.Question);
@@ -356,7 +360,7 @@ namespace NCB_INV
 
                         if (batchList.Count >= 5000)
                         {
-                            await Task.Run(() => DBConnection.BulkImportBooks(batchList, uniqueAuthors.ToList(), uniquePublishers.ToList()));
+                            await Task.Run(() => DBConnection.BulkImportBooks(batchList, [.. uniqueAuthors], [.. uniquePublishers]));
 
                             batchList.Clear();
                             uniqueAuthors.Clear();
@@ -366,7 +370,7 @@ namespace NCB_INV
 
                     if (batchList.Count > 0)
                     {
-                        await Task.Run(() => DBConnection.BulkImportBooks(batchList, uniqueAuthors.ToList(), uniquePublishers.ToList()));
+                        await Task.Run(() => DBConnection.BulkImportBooks(batchList, [.. uniqueAuthors], [.. uniquePublishers]));
                     }
 
                     await DBConnection.ExecuteDeltaSync();
@@ -401,7 +405,7 @@ namespace NCB_INV
                     {
                         var worksheet = workbook.Worksheets.Add("Books");
 
-                        string[] headers = { "Subject", "ISBN", "Title", "Edition", "Year", "Author", "Bind", "Qty", "Price", "Publisher" };
+                        string[] headers = ["Subject", "ISBN", "Title", "Edition", "Year", "Author", "Bind", "Qty", "Price", "Publisher"];
                         for (int i = 0; i < headers.Length; i++)
                         {
                             worksheet.Cell(1, i + 1).Value = headers[i];
@@ -436,7 +440,7 @@ namespace NCB_INV
             }
         }
 
-        private async void btnDeleteBook_Click(object sender, EventArgs e)
+        private async void BtnDeleteBook_Click(object sender, EventArgs e)
         {
             if (dgvBookList.SelectedRows.Count > 0)
             {
@@ -464,13 +468,13 @@ namespace NCB_INV
             }
         }
 
-        private void btnScanBook_Click(object sender, EventArgs e)
+        private void BtnScanBook_Click(object sender, EventArgs e)
         {
             BookScanner bookScanner = new();
             bookScanner.Show();
         }
 
-        private void dgvBookList_CellFormatting(object sender, DataGridViewCellFormattingEventArgs e)
+        private void DgvBookList_CellFormatting(object sender, DataGridViewCellFormattingEventArgs e)
         {
             if (this.dgvBookList.Columns[e.ColumnIndex].Name == "Qty" && e.Value != null)
             {
@@ -492,13 +496,13 @@ namespace NCB_INV
             CompactLocalDatabase();
         }
 
-        private void txtSearch_TextChanged(object sender, EventArgs e)
+        private void TxtSearch_TextChanged(object sender, EventArgs e)
         {
             _searchDebouncer.Stop();
             _searchDebouncer.Start();
         }
 
-        private void lblSuggestion_Click(object sender, EventArgs e)
+        private void LblSuggestion_Click(object sender, EventArgs e)
         {
             string suggestedWord = lblSuggestion.Text
             .Replace("Did you mean: ", "")
@@ -508,7 +512,7 @@ namespace NCB_INV
             txtSearch.Text = suggestedWord;
         }
 
-        private void dgvBookList_DataBindingComplete(object sender, DataGridViewBindingCompleteEventArgs e)
+        private void DgvBookList_DataBindingComplete(object sender, DataGridViewBindingCompleteEventArgs e)
         {
             foreach (DataGridViewColumn column in dgvBookList.Columns)
             {

@@ -12,16 +12,16 @@ namespace NCB_INV
     {
         [BsonId]
         [BsonRepresentation(BsonType.ObjectId)]
-        public string Id { get; set; }
+        public string? Id { get; set; }
 
         [BsonElement("Username")]
-        public string Username { get; set; }
+        public required string Username { get; set; }
 
         [BsonElement("Password")]
-        public string Password { get; set; }
+        public required string Password { get; set; }
 
         [BsonElement("Role")]
-        public string Role { get; set; }
+        public required string Role { get; set; }
 
         [BsonElement("DisplayName")]
         public required string DisplayName { get; set; }

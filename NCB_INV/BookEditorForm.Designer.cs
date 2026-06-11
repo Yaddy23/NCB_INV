@@ -60,7 +60,7 @@
             txtISBN.Name = "txtISBN";
             txtISBN.Size = new Size(432, 38);
             txtISBN.TabIndex = 0;
-            txtISBN.KeyDown += txtISBN_KeyDown;
+            txtISBN.KeyDown += TxtISBN_KeyDown;
             // 
             // txtTitle
             // 
@@ -225,7 +225,7 @@
             btnAddBook.TabIndex = 26;
             btnAddBook.Text = "Add Book";
             btnAddBook.UseVisualStyleBackColor = true;
-            btnAddBook.Click += btnAddBook_Click;
+            btnAddBook.Click += BtnAddBook_Click;
             // 
             // btnCancel
             // 
@@ -236,7 +236,7 @@
             btnCancel.TabIndex = 27;
             btnCancel.Text = "Cancel";
             btnCancel.UseVisualStyleBackColor = true;
-            btnCancel.Click += btnCancel_Click;
+            btnCancel.Click += BtnCancel_Click;
             // 
             // lblStatus
             // 

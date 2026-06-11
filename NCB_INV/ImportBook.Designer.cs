@@ -28,10 +28,10 @@
         /// </summary>
         private void InitializeComponent()
         {
-            DataGridViewCellStyle dataGridViewCellStyle1 = new DataGridViewCellStyle();
-            DataGridViewCellStyle dataGridViewCellStyle2 = new DataGridViewCellStyle();
-            DataGridViewCellStyle dataGridViewCellStyle3 = new DataGridViewCellStyle();
-            DataGridViewCellStyle dataGridViewCellStyle4 = new DataGridViewCellStyle();
+            DataGridViewCellStyle dataGridViewCellStyle5 = new DataGridViewCellStyle();
+            DataGridViewCellStyle dataGridViewCellStyle6 = new DataGridViewCellStyle();
+            DataGridViewCellStyle dataGridViewCellStyle7 = new DataGridViewCellStyle();
+            DataGridViewCellStyle dataGridViewCellStyle8 = new DataGridViewCellStyle();
             dgvBookList = new DataGridView();
             btnReload = new Button();
             btnImport = new Button();
@@ -57,49 +57,49 @@
             dgvBookList.AllowUserToDeleteRows = false;
             dgvBookList.AllowUserToResizeColumns = false;
             dgvBookList.AllowUserToResizeRows = false;
-            dataGridViewCellStyle1.BackColor = Color.FromArgb(249, 249, 249);
-            dataGridViewCellStyle1.Font = new Font("Microsoft Sans Serif", 13.8F);
-            dgvBookList.AlternatingRowsDefaultCellStyle = dataGridViewCellStyle1;
+            dataGridViewCellStyle5.BackColor = Color.FromArgb(249, 249, 249);
+            dataGridViewCellStyle5.Font = new Font("Microsoft Sans Serif", 13.8F);
+            dgvBookList.AlternatingRowsDefaultCellStyle = dataGridViewCellStyle5;
             dgvBookList.Anchor = AnchorStyles.Left | AnchorStyles.Right;
             dgvBookList.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill;
             dgvBookList.AutoSizeRowsMode = DataGridViewAutoSizeRowsMode.AllCells;
             dgvBookList.BackgroundColor = Color.White;
             dgvBookList.BorderStyle = BorderStyle.None;
             dgvBookList.CellBorderStyle = DataGridViewCellBorderStyle.SingleHorizontal;
-            dataGridViewCellStyle2.Alignment = DataGridViewContentAlignment.MiddleLeft;
-            dataGridViewCellStyle2.BackColor = Color.Navy;
-            dataGridViewCellStyle2.Font = new Font("Microsoft Sans Serif", 13.8F, FontStyle.Regular, GraphicsUnit.Point, 0);
-            dataGridViewCellStyle2.ForeColor = Color.White;
-            dataGridViewCellStyle2.SelectionBackColor = SystemColors.Highlight;
-            dataGridViewCellStyle2.SelectionForeColor = SystemColors.HighlightText;
-            dataGridViewCellStyle2.WrapMode = DataGridViewTriState.True;
-            dgvBookList.ColumnHeadersDefaultCellStyle = dataGridViewCellStyle2;
+            dataGridViewCellStyle6.Alignment = DataGridViewContentAlignment.MiddleLeft;
+            dataGridViewCellStyle6.BackColor = Color.Navy;
+            dataGridViewCellStyle6.Font = new Font("Microsoft Sans Serif", 13.8F, FontStyle.Regular, GraphicsUnit.Point, 0);
+            dataGridViewCellStyle6.ForeColor = Color.White;
+            dataGridViewCellStyle6.SelectionBackColor = SystemColors.Highlight;
+            dataGridViewCellStyle6.SelectionForeColor = SystemColors.HighlightText;
+            dataGridViewCellStyle6.WrapMode = DataGridViewTriState.True;
+            dgvBookList.ColumnHeadersDefaultCellStyle = dataGridViewCellStyle6;
             dgvBookList.ColumnHeadersHeightSizeMode = DataGridViewColumnHeadersHeightSizeMode.AutoSize;
-            dataGridViewCellStyle3.Alignment = DataGridViewContentAlignment.MiddleLeft;
-            dataGridViewCellStyle3.BackColor = SystemColors.Window;
-            dataGridViewCellStyle3.Font = new Font("Microsoft Sans Serif", 13.8F, FontStyle.Regular, GraphicsUnit.Point, 0);
-            dataGridViewCellStyle3.ForeColor = SystemColors.ControlText;
-            dataGridViewCellStyle3.SelectionBackColor = SystemColors.Highlight;
-            dataGridViewCellStyle3.SelectionForeColor = SystemColors.HighlightText;
-            dataGridViewCellStyle3.WrapMode = DataGridViewTriState.False;
-            dgvBookList.DefaultCellStyle = dataGridViewCellStyle3;
+            dataGridViewCellStyle7.Alignment = DataGridViewContentAlignment.MiddleLeft;
+            dataGridViewCellStyle7.BackColor = SystemColors.Window;
+            dataGridViewCellStyle7.Font = new Font("Microsoft Sans Serif", 13.8F, FontStyle.Regular, GraphicsUnit.Point, 0);
+            dataGridViewCellStyle7.ForeColor = SystemColors.ControlText;
+            dataGridViewCellStyle7.SelectionBackColor = SystemColors.Highlight;
+            dataGridViewCellStyle7.SelectionForeColor = SystemColors.HighlightText;
+            dataGridViewCellStyle7.WrapMode = DataGridViewTriState.False;
+            dgvBookList.DefaultCellStyle = dataGridViewCellStyle7;
             dgvBookList.Location = new Point(12, 224);
             dgvBookList.Name = "dgvBookList";
             dgvBookList.ReadOnly = true;
-            dataGridViewCellStyle4.Alignment = DataGridViewContentAlignment.MiddleLeft;
-            dataGridViewCellStyle4.BackColor = SystemColors.Control;
-            dataGridViewCellStyle4.Font = new Font("Microsoft Sans Serif", 13.8F);
-            dataGridViewCellStyle4.ForeColor = SystemColors.WindowText;
-            dataGridViewCellStyle4.SelectionBackColor = SystemColors.Highlight;
-            dataGridViewCellStyle4.SelectionForeColor = SystemColors.HighlightText;
-            dataGridViewCellStyle4.WrapMode = DataGridViewTriState.True;
-            dgvBookList.RowHeadersDefaultCellStyle = dataGridViewCellStyle4;
+            dataGridViewCellStyle8.Alignment = DataGridViewContentAlignment.MiddleLeft;
+            dataGridViewCellStyle8.BackColor = SystemColors.Control;
+            dataGridViewCellStyle8.Font = new Font("Microsoft Sans Serif", 13.8F);
+            dataGridViewCellStyle8.ForeColor = SystemColors.WindowText;
+            dataGridViewCellStyle8.SelectionBackColor = SystemColors.Highlight;
+            dataGridViewCellStyle8.SelectionForeColor = SystemColors.HighlightText;
+            dataGridViewCellStyle8.WrapMode = DataGridViewTriState.True;
+            dgvBookList.RowHeadersDefaultCellStyle = dataGridViewCellStyle8;
             dgvBookList.RowHeadersWidth = 100;
             dgvBookList.SelectionMode = DataGridViewSelectionMode.FullRowSelect;
             dgvBookList.Size = new Size(1849, 675);
             dgvBookList.TabIndex = 0;
-            dgvBookList.CellFormatting += dgvBookList_CellFormatting;
-            dgvBookList.DataBindingComplete += dgvBookList_DataBindingComplete;
+            dgvBookList.CellFormatting += DgvBookList_CellFormatting;
+            dgvBookList.DataBindingComplete += DgvBookList_DataBindingComplete;
             // 
             // btnReload
             // 
@@ -110,7 +110,7 @@
             btnReload.TabIndex = 1;
             btnReload.Text = "RELOAD BOOK LIST";
             btnReload.UseVisualStyleBackColor = true;
-            btnReload.Click += btnReload_Click;
+            btnReload.Click += BtnReload_Click;
             // 
             // btnImport
             // 
@@ -122,7 +122,7 @@
             btnImport.TabIndex = 2;
             btnImport.Text = "IMPORT BOOKLIST";
             btnImport.UseVisualStyleBackColor = true;
-            btnImport.Click += btnImport_Click;
+            btnImport.Click += BtnImport_Click;
             // 
             // btnAddBook
             // 
@@ -134,7 +134,7 @@
             btnAddBook.TabIndex = 3;
             btnAddBook.Text = "ADD BOOK";
             btnAddBook.UseVisualStyleBackColor = true;
-            btnAddBook.Click += btnAddBook_Click;
+            btnAddBook.Click += BtnAddBook_Click;
             // 
             // btnModifyBook
             // 
@@ -146,7 +146,7 @@
             btnModifyBook.TabIndex = 4;
             btnModifyBook.Text = "MODIFY BOOK";
             btnModifyBook.UseVisualStyleBackColor = true;
-            btnModifyBook.Click += btnModifyBook_Click;
+            btnModifyBook.Click += BtnModifyBook_Click;
             // 
             // btnDeleteBook
             // 
@@ -158,7 +158,7 @@
             btnDeleteBook.TabIndex = 5;
             btnDeleteBook.Text = "DELETE BOOK";
             btnDeleteBook.UseVisualStyleBackColor = true;
-            btnDeleteBook.Click += btnDeleteBook_Click;
+            btnDeleteBook.Click += BtnDeleteBook_Click;
             // 
             // txtSearch
             // 
@@ -168,7 +168,7 @@
             txtSearch.PlaceholderText = "TYPE HERE TO SEARCH BOOK";
             txtSearch.Size = new Size(1479, 56);
             txtSearch.TabIndex = 8;
-            txtSearch.TextChanged += txtSearch_TextChanged;
+            txtSearch.TextChanged += TxtSearch_TextChanged;
             // 
             // label2
             // 
@@ -190,7 +190,7 @@
             btnScanBook.TabIndex = 10;
             btnScanBook.Text = "SCAN BOOK";
             btnScanBook.UseVisualStyleBackColor = true;
-            btnScanBook.Click += btnScanBook_Click;
+            btnScanBook.Click += BtnScanBook_Click;
             // 
             // lblSyncStatus
             // 
@@ -242,13 +242,13 @@
             // lblSuggestion
             // 
             lblSuggestion.AutoSize = true;
-            lblSuggestion.Font = new Font("Segoe UI", 12F, FontStyle.Regular, GraphicsUnit.Point, 0);
-            lblSuggestion.Location = new Point(18, 82);
+            lblSuggestion.Font = new Font("Segoe UI", 13.8F, FontStyle.Regular, GraphicsUnit.Point, 0);
+            lblSuggestion.Location = new Point(18, 112);
             lblSuggestion.Name = "lblSuggestion";
-            lblSuggestion.Size = new Size(0, 28);
+            lblSuggestion.Size = new Size(0, 31);
             lblSuggestion.TabIndex = 15;
             lblSuggestion.TextAlign = ContentAlignment.MiddleLeft;
-            lblSuggestion.Click += lblSuggestion_Click;
+            lblSuggestion.Click += LblSuggestion_Click;
             // 
             // lblTotalStocks
             // 

@@ -24,7 +24,7 @@ namespace NCB_INV
         private static readonly IMongoCollection<Book>? _bookCollection;
         private static readonly IMongoDatabase? _database;
         private static readonly string sqliteConn = "Data Source=local_inventory.db;";
-        private static readonly HttpClient client1 = new HttpClient();
+        private static readonly HttpClient client1 = new();
         
 
         static DBConnection()
@@ -175,7 +175,7 @@ namespace NCB_INV
                         ChangeAmount = change,
                         NewTotal = total,
                         Reason = reason,
-                        performedBy = username,
+                        PerformedBy = username,
                         Timestamp = DateTime.Now
                     };
                     collection.InsertOne(entry);
@@ -231,40 +231,36 @@ namespace NCB_INV
                     return;
                 }
 
-                using (var conn = new SqliteConnection(sqliteConn))
-                {
-                    conn.Open();
-                    using (var sqliteTrans = conn.BeginTransaction())
-                    {
-                        var cmd = conn.CreateCommand();
-                        cmd.CommandText = @"INSERT INTO OfflineTransactions 
+                using var conn = new SqliteConnection(sqliteConn);
+                conn.Open();
+                using var sqliteTrans = conn.BeginTransaction();
+                var cmd = conn.CreateCommand();
+                cmd.CommandText = @"INSERT INTO OfflineTransactions 
                                    (ISBN, Title, ChangeAmount, NewTotal, Reason, PerformedBy, Date, SyncRequired) 
                                    VALUES (@isbn, @title, @change, @total, @reason, @user, @date, 1)";
 
-                        cmd.Parameters.Add("@isbn", SqliteType.Text);
-                        cmd.Parameters.Add("@title", SqliteType.Text);
-                        cmd.Parameters.Add("@change", SqliteType.Integer);
-                        cmd.Parameters.Add("@total", SqliteType.Text);
-                        cmd.Parameters.Add("@reason", SqliteType.Text);
-                        cmd.Parameters.Add("@user", SqliteType.Text);
-                        cmd.Parameters.Add("@date", SqliteType.Text);
+                cmd.Parameters.Add("@isbn", SqliteType.Text);
+                cmd.Parameters.Add("@title", SqliteType.Text);
+                cmd.Parameters.Add("@change", SqliteType.Integer);
+                cmd.Parameters.Add("@total", SqliteType.Text);
+                cmd.Parameters.Add("@reason", SqliteType.Text);
+                cmd.Parameters.Add("@user", SqliteType.Text);
+                cmd.Parameters.Add("@date", SqliteType.Text);
 
-                        foreach (var t in transactions)
-                        {
-                            cmd.Parameters["@isbn"].Value = t.ISBN ?? "";
-                            cmd.Parameters["@title"].Value = t.Title ?? "";
-                            cmd.Parameters["@change"].Value = t.ChangeAmount;
-                            cmd.Parameters["@total"].Value = t.NewTotal ?? "";
-                            cmd.Parameters["@reason"].Value = t.Reason ?? "";
-                            cmd.Parameters["@user"].Value = t.performedBy ?? "";
-                            cmd.Parameters["@date"].Value = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
+                foreach (var t in transactions)
+                {
+                    cmd.Parameters["@isbn"].Value = t.ISBN ?? "";
+                    cmd.Parameters["@title"].Value = t.Title ?? "";
+                    cmd.Parameters["@change"].Value = t.ChangeAmount;
+                    cmd.Parameters["@total"].Value = t.NewTotal ?? "";
+                    cmd.Parameters["@reason"].Value = t.Reason ?? "";
+                    cmd.Parameters["@user"].Value = t.PerformedBy ?? "";
+                    cmd.Parameters["@date"].Value = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
 
-                            cmd.ExecuteNonQuery();
-                        }
-
-                        sqliteTrans.Commit();
-                    }
+                    cmd.ExecuteNonQuery();
                 }
+
+                sqliteTrans.Commit();
             }
             catch (Exception ex)
             {
@@ -631,10 +627,11 @@ namespace NCB_INV
                     Convert.ToDecimal(row["Price"]),
                     "0",
                     Convert.ToDateTime(row["LastModified"])
-                );
-
-                book.AuthorName = row["Author"].ToString()!;
-                book.PublisherName = row["Publisher"].ToString()!;
+                )
+                {
+                    AuthorName = row["Author"].ToString()!,
+                    PublisherName = row["Publisher"].ToString()!
+                };
                 list.Add(book);
             }
             return list;
@@ -676,9 +673,11 @@ namespace NCB_INV
                         Convert.ToDecimal(reader["Price"]),
                         reader["PublisherID"]?.ToString() ?? "0",
                         Convert.ToDateTime(reader["LastModified"])
-                    );
-                    book.AuthorName = reader["AuthorName"]?.ToString() ?? "Unknown";
-                    book.PublisherName = reader["PublisherName"]?.ToString() ?? "Unknown";
+                    )
+                    {
+                        AuthorName = reader["AuthorName"]?.ToString() ?? "Unknown",
+                        PublisherName = reader["PublisherName"]?.ToString() ?? "Unknown"
+                    };
 
                     books.Add(book);
                 }
@@ -852,11 +851,11 @@ namespace NCB_INV
                     var authorColl = _database!.GetCollection<Author>("Authors");
                     var publisherColl = _database!.GetCollection<Publisher>("Publishers");
 
-                    var author = authorColl.Find(a => a.Name!.ToLower() == authorName.ToLower()).FirstOrDefault()
+                    var author = authorColl.Find(a => a.Name!.Equals(authorName, StringComparison.CurrentCultureIgnoreCase)).FirstOrDefault()
                                  ?? new Author { Name = authorName };
                     if (author.Id == ObjectId.Empty) authorColl.InsertOne(author);
 
-                    var publisher = publisherColl.Find(p => p.Name!.ToLower() == publisherName.ToLower()).FirstOrDefault()
+                    var publisher = publisherColl.Find(p => p.Name!.Equals(publisherName, StringComparison.CurrentCultureIgnoreCase)).FirstOrDefault()
                                     ?? new Publisher { Name = publisherName };
                     if (publisher.Id == ObjectId.Empty) publisherColl.InsertOne(publisher);
 
@@ -987,8 +986,8 @@ namespace NCB_INV
                     )
                     { IsUpsert = true });
 
-                    string localAuthorName = reverseAuthorMap.ContainsKey(aId) ? reverseAuthorMap[aId] : authorVal;
-                    string localPubName = reversePubMap.ContainsKey(pId) ? reversePubMap[pId] : pubVal;
+                    string localAuthorName = reverseAuthorMap.TryGetValue(aId, out string? value) ? value : authorVal;
+                    string localPubName = reversePubMap.TryGetValue(pId, out string? value1) ? value1 : pubVal;
 
                     var localBook = new Book(book.Subject, book.ISBN, book.Title, book.Edition, book.Year, localAuthorName, book.Bind, book.Qty, book.Price, localPubName, book.LastModified);
                     localBooksToSave.Add(localBook);

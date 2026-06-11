@@ -28,40 +28,25 @@ namespace NCB_INV
     }
 
     [BsonIgnoreExtraElements]
-    public class Book
+    public class Book(string subject, string isbn, string title, string edition, string year,
+                string authorId, string bind, int qty, decimal price, string publisherId, DateTime lastModified)
     {
-        public string Subject { get; set; }
-        public string ISBN { get; set; }
-        public string Title { get; set; }
-        public string Edition { get; set; }
-        public string Year { get; set; }
-        public string AuthorId { get; set; }
-        public string Bind { get; set; }
-        public int Qty { get; set; }
-        public decimal Price { get; set; }
-        public string PublisherId { get; set; }
-        public DateTime LastModified { get; set; }
+        public string Subject { get; set; } = subject;
+        public string ISBN { get; set; } = isbn;
+        public string Title { get; set; } = title;
+        public string Edition { get; set; } = edition;
+        public string Year { get; set; } = year;
+        public string AuthorId { get; set; } = authorId;
+        public string Bind { get; set; } = bind;
+        public int Qty { get; set; } = qty;
+        public decimal Price { get; set; } = price;
+        public string PublisherId { get; set; } = publisherId;
+        public DateTime LastModified { get; set; } = lastModified;
 
         [BsonIgnore]
         public string AuthorName { get; set; } = "Unknown";
 
         [BsonIgnore]
         public string PublisherName { get; set; } = "Unknown";
-
-        public Book(string subject, string isbn, string title, string edition, string year,
-                    string authorId, string bind, int qty, decimal price, string publisherId, DateTime lastModified)
-        {
-            Subject = subject;
-            ISBN = isbn;
-            Title = title;
-            Edition = edition;
-            Year = year;
-            AuthorId = authorId;
-            Bind = bind;
-            Qty = qty;
-            Price = price;
-            PublisherId = publisherId;
-            LastModified = lastModified;
-        }
     }
 }

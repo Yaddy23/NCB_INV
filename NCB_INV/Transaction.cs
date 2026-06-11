@@ -12,14 +12,14 @@ namespace NCB_INV
     {
         [BsonId]
         [BsonRepresentation(BsonType.ObjectId)]
-        public string Id { get; set; }
+        public string? Id { get; set; }
 
-        public string ISBN { get; set; }
-        public string Title { get; set; }
-        public int ChangeAmount { get; set; }
-        public string NewTotal { get; set; }
-        public string Reason { get; set; }
-        public string performedBy { get; set; }
-        public DateTime Timestamp { get; set; }
+        public required string ISBN { get; set; }
+        public required string Title { get; set; }
+        public required int ChangeAmount { get; set; }
+        public required string NewTotal { get; set; }
+        public required string Reason { get; set; }
+        public required string PerformedBy { get; set; }
+        public required DateTime Timestamp { get; set; }
     }
 }

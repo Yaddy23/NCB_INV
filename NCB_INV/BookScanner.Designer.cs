@@ -46,7 +46,7 @@
             btnClose.TabIndex = 1;
             btnClose.Text = "CLOSE WINDOW";
             btnClose.UseVisualStyleBackColor = true;
-            btnClose.Click += btnClose_Click;
+            btnClose.Click += BtnClose_Click;
             // 
             // btnImport
             // 
@@ -57,7 +57,7 @@
             btnImport.TabIndex = 2;
             btnImport.Text = "IMPORT MULTIPLE ISBN TO BULK ENTRY";
             btnImport.UseVisualStyleBackColor = true;
-            btnImport.Click += btnImport_Click;
+            btnImport.Click += BtnImport_Click;
             // 
             // txtBarcodeScanner
             // 
@@ -67,7 +67,7 @@
             txtBarcodeScanner.PlaceholderText = "Click Here to Start Scanning.";
             txtBarcodeScanner.Size = new Size(437, 51);
             txtBarcodeScanner.TabIndex = 3;
-            txtBarcodeScanner.KeyDown += txtBarcodeScanner_KeyDown;
+            txtBarcodeScanner.KeyDown += TxtBarcodeScanner_KeyDown;
             // 
             // lblTitle
             // 
@@ -110,7 +110,7 @@
             btnOut.TabIndex = 9;
             btnOut.Text = "IMPORT MULTIPLE ISBN TO BULK RELEASE";
             btnOut.UseVisualStyleBackColor = true;
-            btnOut.Click += btnOut_Click;
+            btnOut.Click += BtnOut_Click;
             // 
             // BookScanner
             // 

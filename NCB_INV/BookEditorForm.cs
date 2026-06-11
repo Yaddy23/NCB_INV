@@ -61,7 +61,7 @@ namespace NCB_INV
 
         }
 
-        private void btnAddBook_Click(object sender, EventArgs e)
+        private void BtnAddBook_Click(object sender, EventArgs e)
         {
             // 1. Existing text check
             if (string.IsNullOrWhiteSpace(txtISBN.Text) || string.IsNullOrWhiteSpace(txtTitle.Text))
@@ -126,7 +126,7 @@ namespace NCB_INV
             this.Close();
         }
 
-        private async void txtISBN_KeyDown(object sender, KeyEventArgs e)
+        private async void TxtISBN_KeyDown(object sender, KeyEventArgs e)
         {
             if (e.KeyCode == Keys.Enter)
             {
@@ -173,7 +173,7 @@ namespace NCB_INV
             }
         }
 
-        private void btnCancel_Click(object sender, EventArgs e)
+        private void BtnCancel_Click(object sender, EventArgs e)
         {
             this.Close();
         }

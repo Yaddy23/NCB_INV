@@ -25,7 +25,7 @@ namespace NCB_INV
             this.ActiveControl = txtBarcodeScanner;
         }
 
-        private void txtBarcodeScanner_KeyDown(object sender, KeyEventArgs e)
+        private void TxtBarcodeScanner_KeyDown(object sender, KeyEventArgs e)
         {
             if (e.KeyCode == Keys.Enter)
             {
@@ -45,7 +45,7 @@ namespace NCB_INV
                     lblOldQty.Text = $"Previous Qty: {oldQty}";
                     lblNewQty.Text = $"New Total Qty: {currentbook.Qty}";
                     lblNewQty.ForeColor = Color.Green;
-                    DBConnection.LogTransaction(txtBarcodeScanner.Text, lblTitle.Text, oldQty, currentbook.Qty.ToString(), "Initial Stock Entry", currentuser);
+                    DBConnection.LogTransaction(txtBarcodeScanner.Text, lblTitle.Text, oldQty, currentbook.Qty.ToString(), "Book Scanned", currentuser);
                 }
                 else
                 {
@@ -61,12 +61,12 @@ namespace NCB_INV
             }
         }
 
-        private async void btnImport_Click(object sender, EventArgs e)
+        private async void BtnImport_Click(object sender, EventArgs e)
         {
             await ProcessExcelBulkUpdate(true); // stock-in
         }
 
-        private async void btnOut_Click(object sender, EventArgs e)
+        private async void BtnOut_Click(object sender, EventArgs e)
         {
             await ProcessExcelBulkUpdate(false); // release
         }
@@ -256,7 +256,7 @@ namespace NCB_INV
     </html>";
         }
 
-        private void btnClose_Click(object sender, EventArgs e) => this.Close();
+        private void BtnClose_Click(object sender, EventArgs e) => this.Close();
 
     }
 }
