@@ -14,7 +14,7 @@ namespace NCB_INV
 {
     public partial class ImportBook : Form
     {
-        private System.Windows.Forms.Timer syncTimer;
+        private System.Windows.Forms.Timer? syncTimer;
         private System.Windows.Forms.Timer conTimer;
         private readonly System.Windows.Forms.Timer _searchDebouncer = new() { Interval = 300 };
         public ImportBook()
@@ -169,7 +169,7 @@ namespace NCB_INV
 
         private void ApplyPermissions()
         {
-            bool isAdmin = CurrentSession.User.Role.Contains("Admin", StringComparison.OrdinalIgnoreCase);
+            bool isAdmin = CurrentSession.User!.Role.Contains("Admin", StringComparison.OrdinalIgnoreCase);
 
 
             btnImport.Visible = isAdmin;
@@ -189,6 +189,8 @@ namespace NCB_INV
             dgvBookList.EnableHeadersVisualStyles = false;
             dgvBookList.ColumnHeadersDefaultCellStyle.BackColor = primaryNavy;
             dgvBookList.ColumnHeadersDefaultCellStyle.ForeColor = Color.White;
+            dgvBookList.VirtualMode = true;
+            BackupLocalDatabase();
             ApplyPermissions();
             await RefreshBookList();
             await RunBackgroundSync();
@@ -196,9 +198,9 @@ namespace NCB_INV
 
         }
 
-        private void btnReload_Click(object sender, EventArgs e)
+        private async void btnReload_Click(object sender, EventArgs e)
         {
-            RefreshBookList();
+            await RefreshBookList();
         }
 
         private async void btnAddBook_Click(object sender, EventArgs e)
@@ -207,7 +209,7 @@ namespace NCB_INV
 
             if (editor.ShowDialog() == DialogResult.OK)
             {
-                bool exists = await Task.Run(() => DBConnection.DoesISBNExist(editor.BookData.ISBN));
+                bool exists = await Task.Run(() => DBConnection.DoesISBNExist(editor.BookData!.ISBN));
                 if (exists)
                 {
                     this.Cursor = Cursors.Default;
@@ -218,10 +220,10 @@ namespace NCB_INV
                 {
                     await Task.Run(() =>
                     {
-                        DBConnection.SaveBook(editor.BookData, editor.BookData.AuthorId, editor.BookData.PublisherId);
+                        DBConnection.SaveBook(editor.BookData!, editor.BookData!.AuthorId, editor.BookData!.PublisherId);
                         DBConnection.LogTransaction(
-                            editor.BookData.ISBN, editor.BookData.Title, editor.BookData.Qty,
-                            editor.BookData.Qty.ToString(), "New Book Added", CurrentSession.User.DisplayName);
+                            editor.BookData!.ISBN, editor.BookData!.Title, editor.BookData!.Qty,
+                            editor.BookData!.Qty.ToString(), "New Book Added", CurrentSession.User!.DisplayName);
                     });
 
                     await RefreshBookList();
@@ -255,16 +257,19 @@ namespace NCB_INV
                 using var editor = new BookEditorForm(selected);
                 if (editor.ShowDialog() == DialogResult.OK)
                 {
-                    await Task.Run(() =>
+                    if (editor.BookData != null && DBConnection.CurrentSession.User != null)
                     {
-                        int change = editor.BookData.Qty - oldQty;
-                        DBConnection.SaveBook(editor.BookData, editor.BookData.AuthorId, editor.BookData.PublisherId);
-                        DBConnection.LogTransaction(
-                            editor.BookData.ISBN, editor.BookData.Title, editor.BookData.Qty,
-                            editor.BookData.Qty.ToString(), "New Book Added", CurrentSession.User.DisplayName);
-                    });
+                        await Task.Run(() =>
+                        {
+                            int change = editor.BookData.Qty - oldQty;
+                            DBConnection.SaveBook(editor.BookData, editor.BookData.AuthorId, editor.BookData.PublisherId);
+                            DBConnection.LogTransaction(
+                                editor.BookData.ISBN, editor.BookData.Title, editor.BookData.Qty,
+                                editor.BookData.Qty.ToString(), "New Book Added", DBConnection.CurrentSession.User.DisplayName);
+                        });
 
-                    RefreshBookList();
+                        await RefreshBookList();
+                    }
                 }
             }
         }
@@ -307,13 +312,13 @@ namespace NCB_INV
                         if (row[1] == DBNull.Value || string.IsNullOrWhiteSpace(row[1].ToString()))
                             continue;
 
-                        string rawisbn = row[1].ToString().Trim();
+                        string rawisbn = row[1].ToString()!.Trim();
                         string cleanIsbn = rawisbn.Replace("-", "").Replace(" ", "");
 
                         int qty = 0;
                         if (row[7] != DBNull.Value)
                         {
-                            string rawqty = row[7].ToString().Trim();
+                            string rawqty = row[7].ToString()!.Trim();
                             if (double.TryParse(rawqty, out double parsedQty))
                             {
                                 qty = (int)Math.Round(parsedQty);
@@ -360,7 +365,7 @@ namespace NCB_INV
 
                     await DBConnection.ExecuteDeltaSync();
                     MessageBox.Show($"Import Successful! {totalImportedCount} books processed.", "Success", MessageBoxButtons.OK, MessageBoxIcon.Information);
-                    RefreshBookList();
+                    await RefreshBookList();
                 }
                 catch (Exception ex)
                 {
@@ -430,25 +435,25 @@ namespace NCB_INV
             if (dgvBookList.SelectedRows.Count > 0)
             {
                 var row = dgvBookList.SelectedRows[0];
-                string isbn = row.Cells["ISBN"].Value.ToString();
-                string title = row.Cells["Title"].Value.ToString();
+                string isbn = row.Cells["ISBN"].Value.ToString()!;
+                string title = row.Cells["Title"].Value.ToString()!;
                 int lastQty = Convert.ToInt32(row.Cells["Qty"].Value);
 
                 if (MessageBox.Show($"Delete '{title}'?", "Confirm", MessageBoxButtons.YesNo) == DialogResult.Yes)
                 {
                     await Task.Run(() =>
                     {
-                        DBConnection.DeleteBook(isbn);
+                        DBConnection.DeleteBook(isbn!);
                         DBConnection.LogTransaction(
-                            isbn,
-                            title,
+                            isbn!,
+                            title!,
                             -lastQty,
                             "0",
                             "Book Deleted",
-                            CurrentSession.User.DisplayName);
+                            CurrentSession.User!.DisplayName);
                     });
 
-                    RefreshBookList();
+                    await RefreshBookList();
                 }
             }
         }

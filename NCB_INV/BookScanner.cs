@@ -111,7 +111,7 @@ namespace NCB_INV
                             .Where(r => r[0] != DBNull.Value && !string.IsNullOrWhiteSpace(r[0].ToString()))
                             .GroupBy(r =>
                             {
-                                string raw = r[0].ToString().Trim()
+                                string raw = r[0].ToString()!.Trim()
                                              .Replace("=", "").Replace("\"", "")
                                              .Replace("-", "").Replace(" ", "");
 

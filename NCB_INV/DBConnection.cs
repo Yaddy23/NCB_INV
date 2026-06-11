@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Data;
+using System.Diagnostics;
 using System.Net.Http;
 using System.Runtime.InteropServices.Marshalling;
 using System.Security.Cryptography;
@@ -408,10 +409,10 @@ namespace NCB_INV
 
                     foreach (var cBook in cloudBooks)
                     {
-                        string authorName = mongoAuthors.TryGetValue(cBook.AuthorId, out var aName) ? aName : "Unknown";
-                        string pubName = mongoPubs.TryGetValue(cBook.PublisherId, out var pName) ? pName : "Unknown";
+                        string? authorName = mongoAuthors.TryGetValue(cBook.AuthorId, out var aName) ? aName : "Unknown";
+                        string? pubName = mongoPubs.TryGetValue(cBook.PublisherId, out var pName) ? pName : "Unknown";
 
-                        UpdateLocalFromCloudInternal(cBook, conn, transaction, authorName, pubName);
+                        UpdateLocalFromCloudInternal(cBook, conn, transaction, authorName!, pubName!);
                     }
 
 
@@ -476,8 +477,8 @@ namespace NCB_INV
             var authorsColl = _database.GetCollection<Author>("Authors");
             var pubsColl = _database.GetCollection<Publisher>("Publishers");
 
-            var mongoAuthors = (await authorsColl.Find(_ => true).ToListAsync()).ToDictionary(a => a.Name.ToLower().Trim(), a => a);
-            var mongoPubs = (await pubsColl.Find(_ => true).ToListAsync()).ToDictionary(p => p.Name.ToLower().Trim(), p => p);
+            var mongoAuthors = (await authorsColl.Find(_ => true).ToListAsync()).ToDictionary(a => a.Name!.ToLower().Trim(), a => a);
+            var mongoPubs = (await pubsColl.Find(_ => true).ToListAsync()).ToDictionary(p => p.Name!.ToLower().Trim(), p => p);
 
             using var conn = new SqliteConnection(sqliteConn);
             conn.Open();
@@ -619,21 +620,21 @@ namespace NCB_INV
             foreach (DataRow row in table.Rows)
             {
                 var book = new Book(
-                    row["Subject"].ToString(),
-                    row["ISBN"].ToString(),
-                    row["Title"].ToString(),
-                    row["Edition"].ToString(),
-                    row["Year"].ToString(),
+                    row["Subject"].ToString()!,
+                    row["ISBN"].ToString()!,
+                    row["Title"].ToString()!,
+                    row["Edition"].ToString()!,
+                    row["Year"].ToString()!,
                     "0",
-                    row["Bind"].ToString(),
+                    row["Bind"].ToString()!,
                     Convert.ToInt32(row["Qty"]),
                     Convert.ToDecimal(row["Price"]),
                     "0",
                     Convert.ToDateTime(row["LastModified"])
                 );
 
-                book.AuthorName = row["Author"].ToString();
-                book.PublisherName = row["Publisher"].ToString();
+                book.AuthorName = row["Author"].ToString()!;
+                book.PublisherName = row["Publisher"].ToString()!;
                 list.Add(book);
             }
             return list;
@@ -848,14 +849,14 @@ namespace NCB_INV
             {
                 try
                 {
-                    var authorColl = _database.GetCollection<Author>("Authors");
-                    var publisherColl = _database.GetCollection<Publisher>("Publishers");
+                    var authorColl = _database!.GetCollection<Author>("Authors");
+                    var publisherColl = _database!.GetCollection<Publisher>("Publishers");
 
-                    var author = authorColl.Find(a => a.Name.ToLower() == authorName.ToLower()).FirstOrDefault()
+                    var author = authorColl.Find(a => a.Name!.ToLower() == authorName.ToLower()).FirstOrDefault()
                                  ?? new Author { Name = authorName };
                     if (author.Id == ObjectId.Empty) authorColl.InsertOne(author);
 
-                    var publisher = publisherColl.Find(p => p.Name.ToLower() == publisherName.ToLower()).FirstOrDefault()
+                    var publisher = publisherColl.Find(p => p.Name!.ToLower() == publisherName.ToLower()).FirstOrDefault()
                                     ?? new Publisher { Name = publisherName };
                     if (publisher.Id == ObjectId.Empty) publisherColl.InsertOne(publisher);
 
@@ -863,7 +864,7 @@ namespace NCB_INV
                     book.PublisherId = publisher.Id.ToString();
 
                     var filter = Builders<Book>.Filter.Eq(b => b.ISBN, book.ISBN);
-                    _bookCollection.ReplaceOne(filter, book, new ReplaceOptions { IsUpsert = true });
+                    _bookCollection!.ReplaceOne(filter, book, new ReplaceOptions { IsUpsert = true });
                 }
                 catch (Exception ex)
                 {
@@ -926,8 +927,8 @@ namespace NCB_INV
 
             if (IsCloudAvailable())
             {
-                var authorsColl = _database.GetCollection<Author>("Authors");
-                var pubsColl = _database.GetCollection<Publisher>("Publishers");
+                var authorsColl = _database!.GetCollection<Author>("Authors");
+                var pubsColl = _database!.GetCollection<Publisher>("Publishers");
 
                 var existingAuthors = await authorsColl.Find(_ => true).ToListAsync();
                 var existingAuthorIds = existingAuthors.Select(a => a.Id.ToString()).ToHashSet();
@@ -959,8 +960,8 @@ namespace NCB_INV
                 }
                 if (pubOps.Count > 0) await pubsColl.BulkWriteAsync(pubOps);
 
-                var authorMap = (await authorsColl.Find(_ => true).ToListAsync()).ToDictionary(a => a.Name.ToLower(), a => a.Id.ToString());
-                var pubMap = (await pubsColl.Find(_ => true).ToListAsync()).ToDictionary(p => p.Name.ToLower(), p => p.Id.ToString());
+                var authorMap = (await authorsColl.Find(_ => true).ToListAsync()).ToDictionary(a => a.Name!.ToLower(), a => a.Id.ToString());
+                var pubMap = (await pubsColl.Find(_ => true).ToListAsync()).ToDictionary(p => p.Name!.ToLower(), p => p.Id.ToString());
 
                 var reverseAuthorMap = authorMap.ToDictionary(kvp => kvp.Value, kvp => kvp.Key, StringComparer.OrdinalIgnoreCase);
                 var reversePubMap = pubMap.ToDictionary(kvp => kvp.Value, kvp => kvp.Key, StringComparer.OrdinalIgnoreCase);
@@ -1145,6 +1146,41 @@ namespace NCB_INV
         }
 
         // Manages user access, hashes passwords, and caches credentials for offline login.
+
+        public static void BackupLocalDatabase()
+        {
+            try
+            {
+                string sourceFile = "local_inventory.db";
+
+                if (!File.Exists(sourceFile)) return;
+
+                string backupFolder = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Backups");
+                Directory.CreateDirectory(backupFolder);
+
+                string backupFile = Path.Combine(backupFolder, $"local_inventory_{DateTime.Now:yyyy_MM_dd}.db");
+
+                if (!File.Exists(backupFile))
+                {
+                    File.Copy(sourceFile, backupFile, overwrite: true);
+
+                    var directory = new DirectoryInfo(backupFolder);
+                    foreach (var file in directory.GetFiles("*.db"))
+                    {
+                        if (file.CreationTime < DateTime.Now.AddDays(-7))
+                        {
+                            file.Delete();
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine("Database backup failed: " + ex.Message);
+            }
+        }
+
+        // local db back up and cleanup to prevent data loss and manage disk space.
 
     }
 }

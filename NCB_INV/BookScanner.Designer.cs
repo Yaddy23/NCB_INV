@@ -39,11 +39,12 @@
             // 
             // btnClose
             // 
-            btnClose.Location = new Point(897, 291);
+            btnClose.Font = new Font("Segoe UI", 9F, FontStyle.Bold, GraphicsUnit.Point, 0);
+            btnClose.Location = new Point(1031, 219);
             btnClose.Name = "btnClose";
-            btnClose.Size = new Size(74, 53);
+            btnClose.Size = new Size(142, 68);
             btnClose.TabIndex = 1;
-            btnClose.Text = "Close Window";
+            btnClose.Text = "CLOSE WINDOW";
             btnClose.UseVisualStyleBackColor = true;
             btnClose.Click += btnClose_Click;
             // 
@@ -52,7 +53,7 @@
             btnImport.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
             btnImport.Location = new Point(455, 11);
             btnImport.Name = "btnImport";
-            btnImport.Size = new Size(248, 52);
+            btnImport.Size = new Size(319, 52);
             btnImport.TabIndex = 2;
             btnImport.Text = "IMPORT MULTIPLE ISBN TO BULK ENTRY";
             btnImport.UseVisualStyleBackColor = true;
@@ -73,7 +74,7 @@
             lblTitle.AutoEllipsis = true;
             lblTitle.AutoSize = true;
             lblTitle.Font = new Font("Segoe UI", 13.8F, FontStyle.Regular, GraphicsUnit.Point, 0);
-            lblTitle.Location = new Point(12, 71);
+            lblTitle.Location = new Point(12, 86);
             lblTitle.MaximumSize = new Size(500, 0);
             lblTitle.Name = "lblTitle";
             lblTitle.Size = new Size(19, 31);
@@ -84,7 +85,7 @@
             // 
             lblOldQty.AutoSize = true;
             lblOldQty.Font = new Font("Segoe UI", 13.8F, FontStyle.Regular, GraphicsUnit.Point, 0);
-            lblOldQty.Location = new Point(12, 185);
+            lblOldQty.Location = new Point(12, 200);
             lblOldQty.Name = "lblOldQty";
             lblOldQty.Size = new Size(19, 31);
             lblOldQty.TabIndex = 7;
@@ -94,7 +95,7 @@
             // 
             lblNewQty.AutoSize = true;
             lblNewQty.Font = new Font("Segoe UI", 13.8F, FontStyle.Regular, GraphicsUnit.Point, 0);
-            lblNewQty.Location = new Point(12, 231);
+            lblNewQty.Location = new Point(12, 246);
             lblNewQty.Name = "lblNewQty";
             lblNewQty.Size = new Size(19, 31);
             lblNewQty.TabIndex = 8;
@@ -103,9 +104,9 @@
             // btnOut
             // 
             btnOut.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
-            btnOut.Location = new Point(709, 11);
+            btnOut.Location = new Point(780, 11);
             btnOut.Name = "btnOut";
-            btnOut.Size = new Size(267, 51);
+            btnOut.Size = new Size(393, 52);
             btnOut.TabIndex = 9;
             btnOut.Text = "IMPORT MULTIPLE ISBN TO BULK RELEASE";
             btnOut.UseVisualStyleBackColor = true;
@@ -115,7 +116,7 @@
             // 
             AutoScaleDimensions = new SizeF(8F, 20F);
             AutoScaleMode = AutoScaleMode.Font;
-            ClientSize = new Size(983, 356);
+            ClientSize = new Size(1195, 338);
             ControlBox = false;
             Controls.Add(btnOut);
             Controls.Add(lblNewQty);

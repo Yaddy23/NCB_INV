@@ -13,7 +13,7 @@ namespace NCB_INV
     public partial class BookEditorForm : Form
     {
         public Book? BookData { get; set; }
-        private bool isEditMode = false;
+        private bool isEditMode;
         public BookEditorForm(Book? existingbook = null)
         {
             InitializeComponent();
@@ -31,6 +31,7 @@ namespace NCB_INV
 
 
                 txtISBN.ReadOnly = true;
+                btnAddBook.Text = "Save Changes";
                 this.Text = "Modify Book Details";
             }
             else
@@ -62,27 +63,65 @@ namespace NCB_INV
 
         private void btnAddBook_Click(object sender, EventArgs e)
         {
-            if (string.IsNullOrWhiteSpace(txtISBN.Text) && string.IsNullOrWhiteSpace(txtTitle.Text))
+            // 1. Existing text check
+            if (string.IsNullOrWhiteSpace(txtISBN.Text) || string.IsNullOrWhiteSpace(txtTitle.Text))
             {
-                MessageBox.Show("ISBN/Title is required!");
+                MessageBox.Show("ISBN and Title are required!", "Validation Error", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
+            // 2. Defensive Quantity Check
+            if (!int.TryParse(txtQty.Text, out int qty) || qty < 0)
+            {
+                MessageBox.Show("Please enter a valid, non-negative whole number for Quantity.", "Validation Error", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
+            // 3. Defensive Price Check
+            if (!decimal.TryParse(txtPrice.Text, out decimal price) || price < 0)
+            {
+                MessageBox.Show("Please enter a valid, non-negative number for Price.", "Validation Error", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 return;
             }
 
             string currentuser = DBConnection.CurrentSession.User?.Username ?? "Unknown User";
-            BookData = new Book(
-                txtSubject.Text,
-                txtISBN.Text,
-                txtTitle.Text,
-                txtEdition.Text,
-                txtYear.Text,
-                txtAuthor.Text,
-                txtBind.Text,
-                int.Parse(txtQty.Text),
-                decimal.Parse(txtPrice.Text),
-                txtPublisher.Text,
-                DateTime.Now
-            );
-            DBConnection.LogTransaction(txtISBN.Text, txtTitle.Text, int.Parse(txtQty.Text), txtQty.Text, "Initial Stock Entry", currentuser);
+
+            if (isEditMode)
+            {
+                if (BookData != null)
+                {
+                    BookData.Subject = txtSubject.Text;
+                    BookData.Title = txtTitle.Text;
+                    BookData.Edition = txtEdition.Text;
+                    BookData.Year = txtYear.Text;
+                    BookData.AuthorId = txtAuthor.Text;
+                    BookData.Bind = txtBind.Text;
+                    BookData.Qty = qty;
+                    BookData.Price = price;
+                    BookData.PublisherId = txtPublisher.Text;
+                    BookData.LastModified = DateTime.Now;
+                }
+                DBConnection.LogTransaction(txtISBN.Text, txtTitle.Text, qty, $"Updated stock to {qty}", "Book Details Modified", currentuser);
+            }
+            else
+            {
+                BookData = new Book(
+                    txtSubject.Text,
+                    txtISBN.Text,
+                    txtTitle.Text,
+                    txtEdition.Text,
+                    txtYear.Text,
+                    txtAuthor.Text,
+                    txtBind.Text,
+                    qty,
+                    price,
+                    txtPublisher.Text,
+                    DateTime.Now
+                );
+
+                DBConnection.LogTransaction(txtISBN.Text, txtTitle.Text, qty, txtQty.Text, "Initial Stock Entry", currentuser);
+            }
+
             this.DialogResult = DialogResult.OK;
             this.Close();
         }

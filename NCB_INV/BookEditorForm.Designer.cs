@@ -58,7 +58,7 @@
             txtISBN.Font = new Font("Segoe UI", 13.8F);
             txtISBN.Location = new Point(147, 57);
             txtISBN.Name = "txtISBN";
-            txtISBN.Size = new Size(228, 38);
+            txtISBN.Size = new Size(432, 38);
             txtISBN.TabIndex = 0;
             txtISBN.KeyDown += txtISBN_KeyDown;
             // 
@@ -67,7 +67,7 @@
             txtTitle.Font = new Font("Segoe UI", 13.8F);
             txtTitle.Location = new Point(147, 101);
             txtTitle.Name = "txtTitle";
-            txtTitle.Size = new Size(228, 38);
+            txtTitle.Size = new Size(432, 38);
             txtTitle.TabIndex = 1;
             // 
             // txtEdition
@@ -75,7 +75,7 @@
             txtEdition.Font = new Font("Segoe UI", 13.8F);
             txtEdition.Location = new Point(147, 145);
             txtEdition.Name = "txtEdition";
-            txtEdition.Size = new Size(228, 38);
+            txtEdition.Size = new Size(432, 38);
             txtEdition.TabIndex = 2;
             // 
             // txtYear
@@ -83,7 +83,7 @@
             txtYear.Font = new Font("Segoe UI", 13.8F);
             txtYear.Location = new Point(147, 189);
             txtYear.Name = "txtYear";
-            txtYear.Size = new Size(228, 38);
+            txtYear.Size = new Size(432, 38);
             txtYear.TabIndex = 3;
             // 
             // txtAuthor
@@ -91,7 +91,7 @@
             txtAuthor.Font = new Font("Segoe UI", 13.8F);
             txtAuthor.Location = new Point(147, 233);
             txtAuthor.Name = "txtAuthor";
-            txtAuthor.Size = new Size(228, 38);
+            txtAuthor.Size = new Size(432, 38);
             txtAuthor.TabIndex = 4;
             // 
             // txtBind
@@ -99,7 +99,7 @@
             txtBind.Font = new Font("Segoe UI", 13.8F);
             txtBind.Location = new Point(147, 277);
             txtBind.Name = "txtBind";
-            txtBind.Size = new Size(228, 38);
+            txtBind.Size = new Size(432, 38);
             txtBind.TabIndex = 5;
             // 
             // txtQty
@@ -107,7 +107,7 @@
             txtQty.Font = new Font("Segoe UI", 13.8F);
             txtQty.Location = new Point(147, 321);
             txtQty.Name = "txtQty";
-            txtQty.Size = new Size(228, 38);
+            txtQty.Size = new Size(432, 38);
             txtQty.TabIndex = 6;
             // 
             // txtPrice
@@ -115,7 +115,7 @@
             txtPrice.Font = new Font("Segoe UI", 13.8F);
             txtPrice.Location = new Point(147, 365);
             txtPrice.Name = "txtPrice";
-            txtPrice.Size = new Size(228, 38);
+            txtPrice.Size = new Size(432, 38);
             txtPrice.TabIndex = 7;
             // 
             // txtPublisher
@@ -123,7 +123,7 @@
             txtPublisher.Font = new Font("Segoe UI", 13.8F);
             txtPublisher.Location = new Point(147, 409);
             txtPublisher.Name = "txtPublisher";
-            txtPublisher.Size = new Size(228, 38);
+            txtPublisher.Size = new Size(432, 38);
             txtPublisher.TabIndex = 8;
             // 
             // label1
@@ -219,7 +219,7 @@
             // btnAddBook
             // 
             btnAddBook.Font = new Font("Segoe UI", 25.8000011F, FontStyle.Bold, GraphicsUnit.Point, 0);
-            btnAddBook.Location = new Point(420, 16);
+            btnAddBook.Location = new Point(650, 17);
             btnAddBook.Name = "btnAddBook";
             btnAddBook.Size = new Size(247, 210);
             btnAddBook.TabIndex = 26;
@@ -230,7 +230,7 @@
             // btnCancel
             // 
             btnCancel.Font = new Font("Segoe UI", 13.8F, FontStyle.Bold, GraphicsUnit.Point, 0);
-            btnCancel.Location = new Point(561, 437);
+            btnCancel.Location = new Point(775, 437);
             btnCancel.Name = "btnCancel";
             btnCancel.Size = new Size(122, 69);
             btnCancel.TabIndex = 27;
@@ -242,7 +242,7 @@
             // 
             lblStatus.AutoSize = true;
             lblStatus.Font = new Font("Segoe UI", 13.8F);
-            lblStatus.Location = new Point(10, 474);
+            lblStatus.Location = new Point(10, 467);
             lblStatus.Name = "lblStatus";
             lblStatus.Size = new Size(94, 31);
             lblStatus.TabIndex = 28;
@@ -263,7 +263,7 @@
             txtSubject.Font = new Font("Segoe UI", 13.8F);
             txtSubject.Location = new Point(147, 13);
             txtSubject.Name = "txtSubject";
-            txtSubject.Size = new Size(228, 38);
+            txtSubject.Size = new Size(432, 38);
             txtSubject.TabIndex = 29;
             // 
             // BookEditorForm
@@ -271,7 +271,7 @@
             AutoScaleDimensions = new SizeF(8F, 20F);
             AutoScaleMode = AutoScaleMode.Font;
             CancelButton = btnCancel;
-            ClientSize = new Size(695, 518);
+            ClientSize = new Size(912, 518);
             ControlBox = false;
             Controls.Add(label10);
             Controls.Add(txtSubject);

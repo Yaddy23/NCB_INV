@@ -20,7 +20,7 @@ namespace NCB_INV
             }
         }
 
-        [STAThread]
+        [STAThread] 
         static void Main()
         {
             Application.EnableVisualStyles();
