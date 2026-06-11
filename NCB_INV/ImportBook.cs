@@ -320,6 +320,7 @@ namespace NCB_INV
 
             if (ofd.ShowDialog() == DialogResult.OK)
             {
+                    btnImport.Enabled = false;
                 try
                 {
                     Cursor.Current = Cursors.WaitCursor;
@@ -404,6 +405,7 @@ namespace NCB_INV
                 finally
                 {
                     Cursor.Current = Cursors.Default;
+                    btnImport.Enabled = true;
                 }
             }
         }
