@@ -163,6 +163,10 @@ namespace NCB_INV
             //Re - bind the data source
             dgvBookList.DataSource = freshData;
             dgvBookList.Columns["LastModified"].Visible = false;
+            dgvBookList.Columns["Title"].FillWeight = 300;
+            dgvBookList.Columns["ISBN"].FillWeight = 120;
+            dgvBookList.Columns["Qty"].FillWeight = 50;
+
 
             this.Cursor = Cursors.Default;
         }
@@ -190,6 +194,8 @@ namespace NCB_INV
             dgvBookList.ColumnHeadersDefaultCellStyle.BackColor = primaryNavy;
             dgvBookList.ColumnHeadersDefaultCellStyle.ForeColor = Color.White;
             dgvBookList.VirtualMode = true;
+            dgvBookList.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill;
+
             BackupLocalDatabase();
             ApplyPermissions();
             await RefreshBookList();

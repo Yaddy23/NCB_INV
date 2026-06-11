@@ -26,6 +26,7 @@ namespace NCB_INV
             Application.EnableVisualStyles();
             Application.SetCompatibleTextRenderingDefault(false);
             System.Text.Encoding.RegisterProvider(System.Text.CodePagesEncodingProvider.Instance);
+            Application.SetHighDpiMode(HighDpiMode.PerMonitorV2);
 
             Login login = new Login();
 
