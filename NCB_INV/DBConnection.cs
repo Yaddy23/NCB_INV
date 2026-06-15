@@ -627,27 +627,9 @@ namespace NCB_INV
 
         public static DataTable GetInventory()
         {
-            DataTable dt = new();
-            using var connection = new SqliteConnection(sqliteConn);
-            connection.Open();
+            List<Book> localList = GetLocalBooks();
 
-            var cmd = connection.CreateCommand();
-
-            cmd.CommandText = @"
-               SELECT b.Subject, b.ISBN, b.Title, b.Edition, b.Year, 
-               COALESCE(a.Name, 'Unknown') as Author, 
-               b.Bind, b.Qty, CAST(b.Price AS DECIMAL) as Price, 
-               COALESCE(p.Name, 'Unknown') as Publisher, 
-               b.LastModified 
-               FROM OfflineBooks b
-               LEFT JOIN Authors a ON b.AuthorID = a.AuthorID
-               LEFT JOIN Publishers p ON b.PublisherID = p.PublisherID";
-
-            using var reader = cmd.ExecuteReader();
-
-            dt.Load(reader);
-
-            return dt;
+            return ToDataTable(localList);
         }
 
         public static async Task<DataTable> GetInventoryAsync()
@@ -842,24 +824,20 @@ namespace NCB_INV
                     {
                         getCmd.Transaction = transaction;
                         getCmd.CommandText = "SELECT Name, AuthorID FROM Authors";
-                        using (var authorReader = getCmd.ExecuteReader())
-                        {
-                            while (authorReader.Read()) authorCache[authorReader.GetString(0)] = authorReader.GetInt32(1);
-                        }
+                        using var authorReader  = getCmd.ExecuteReader();
+                        while (authorReader.Read()) authorCache[authorReader.GetString(0)] = authorReader.GetInt32(1);
 
                         getCmd.CommandText = "SELECT Name, PublisherID FROM Publishers";
-                        using (var pubReader = getCmd.ExecuteReader())
-                        {
-                            while (pubReader.Read()) publisherCache[pubReader.GetString(0)] = pubReader.GetInt32(1);
-                        }
+                        using var pubReader = getCmd.ExecuteReader();
+                        while (pubReader.Read()) publisherCache[pubReader.GetString(0)] = pubReader.GetInt32(1);
                     }
 
                     var cmd = connection.CreateCommand();
                     cmd.Transaction = transaction;
 
                     cmd.CommandText = @"INSERT OR REPLACE INTO OfflineBooks 
-                (Subject, ISBN, Title, Edition, Year, AuthorID, Bind, Price, Qty, PublisherID, SyncRequired, LastModified) 
-                VALUES ($subject, $isbn, $title, $edition, $year, $authorId, $bind, $price, $qty, $publisherId, 1, $lastMod)";
+                        (Subject, ISBN, Title, Edition, Year, AuthorID, Bind, Price, Qty, PublisherID, SyncRequired, LastModified) 
+                        VALUES ($subject, $isbn, $title, $edition, $year, $authorId, $bind, $price, $qty, $publisherId, 1, $lastMod)";
 
                     cmd.Parameters.Add("$subject", SqliteType.Text);
                     cmd.Parameters.Add("$isbn", SqliteType.Text);

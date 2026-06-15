@@ -70,11 +70,6 @@ namespace NCB_INV
         {
             await ProcessExcelBulkUpdate(false); // release
         }
-        private static string NormalizeISBN(string? input)
-        {
-            if (string.IsNullOrWhiteSpace(input)) return string.Empty;
-            return new string(input.Where(char.IsLetterOrDigit).ToArray()).ToUpper();
-        }
 
         private static async Task ProcessExcelBulkUpdate(bool isStockIn)
         {
@@ -113,20 +108,27 @@ namespace NCB_INV
 
                             var table = result.Tables[0];
 
-                            var localInventoryMap = DBConnection.GetLocalBooks()
-                            .GroupBy(b => NormalizeISBN(b.ISBN))
-                            .ToDictionary(g => g.Key, g => g.First());
-
                             var groupedData = table.AsEnumerable()
                                 .Skip(1)
                                 .Where(r => r[0] != DBNull.Value && !string.IsNullOrWhiteSpace(r[0].ToString()))
-                                .GroupBy(r => NormalizeISBN(r[0].ToString()));
+                                .GroupBy(r =>
+                                {
+                                    string raw = r[0].ToString()!.Trim()
+                                                 .Replace("=", "").Replace("\"", "")
+                                                 .Replace("-", "").Replace(" ", "");
+
+                                    if (double.TryParse(raw, out double d))
+                                    {
+                                        return d.ToString("F0");
+                                    }
+                                    return raw;
+                                });
 
                             foreach (var group in groupedData)
                             {
                                 string isbn = group.Key;
                                 int countInExcel = group.Count();
-                                localInventoryMap.TryGetValue(isbn, out Book? book);
+                                Book? book = DBConnection.GetLocalBookByISBN(isbn);
 
                                 if (book != null)
                                 {
