@@ -13,22 +13,22 @@ namespace NCB_INV
             if (string.IsNullOrEmpty(s)) return t?.Length ?? 0;
             if (string.IsNullOrEmpty(t)) return s?.Length ?? 0;
 
-            int n = s.Length;
-            int m = t.Length;
-            int[,] d = new int[n + 1, m + 1];
+            int[] v0 = new int[t.Length + 1];
+            int[] v1 = new int[t.Length + 1];
 
-            for (int i = 0; i <= n; d[i, 0] = i++) ;
-            for (int j = 0; j <= m; d[0, j] = j++) ;
+            for(int i = 0; i <= v0.Length; i++) v0[i] = i;
 
-            for (int i = 1; i <= n; i++)
+            for(int i = 0; i < s.Length; i++)
             {
-                for (int j = 1; j <= m; j++)
+                v1[0] = i + 1;
+                for(int j = 0; j < t.Length; j++)
                 {
-                    int cost = (t[j - 1] == s[i - 1]) ? 0 : 1;
-                    d[i, j] = Math.Min(Math.Min(d[i - 1, j] + 1, d[i, j - 1] + 1), d[i - 1, j - 1] + cost);
+                    int cost = (s[i] == t[j]) ? 0 : 1;
+                    v1[j + 1] = Math.Min(Math.Min(v1[j] + 1, v0[j + 1] + 1), v0[j] + cost);
                 }
+               for(int j = 0; j < v0.Length; j++) v0[j] = v1[j];
             }
-            return d[n, m];
+           return v1[t.Length];
         }
 
         public static (List<Book> Results, string Suggestion) FuzzySearch(string query, List<Book> source)

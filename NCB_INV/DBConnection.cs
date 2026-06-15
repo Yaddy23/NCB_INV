@@ -445,14 +445,25 @@ namespace NCB_INV
                         }
                     }
 
-                    foreach (var localIsbn in localisbns)
+                    var booksToDelete = localisbns.Where(isbn => !cloudISBNset.Contains(isbn)).ToList();
+
+                    if (booksToDelete.Any())
                     {
-                        if (!cloudISBNset.Contains(localIsbn))
+                        for(int i = 0; i < booksToDelete.Count; i += 500)
                         {
+                            var chunk = booksToDelete.Skip(i).Take(500).ToList();
+
+                            var parameters = string.Join(",", chunk.Select((_, index) => $"@p{index}"));
+
                             using var delCmd = conn.CreateCommand();
                             delCmd.Transaction = transaction;
-                            delCmd.CommandText = "DELETE FROM OfflineBooks WHERE ISBN = @isbn";
-                            delCmd.Parameters.AddWithValue("@isbn", localIsbn);
+                            delCmd.CommandText = $"DELETE FROM OfflineBooks WHERE ISBN IN ({parameters})";
+
+                            for(int j = 0; j < chunk.Count; j++)
+                            {
+                                delCmd.Parameters.AddWithValue($"@p{j}", chunk[j]);
+                            }
+
                             delCmd.ExecuteNonQuery();
                         }
                     }
@@ -616,9 +627,27 @@ namespace NCB_INV
 
         public static DataTable GetInventory()
         {
-            List<Book> localList = GetLocalBooks();
+            DataTable dt = new();
+            using var connection = new SqliteConnection(sqliteConn);
+            connection.Open();
 
-            return ToDataTable(localList);
+            var cmd = connection.CreateCommand();
+
+            cmd.CommandText = @"
+               SELECT b.Subject, b.ISBN, b.Title, b.Edition, b.Year, 
+               COALESCE(a.Name, 'Unknown') as Author, 
+               b.Bind, b.Qty, CAST(b.Price AS DECIMAL) as Price, 
+               COALESCE(p.Name, 'Unknown') as Publisher, 
+               b.LastModified 
+               FROM OfflineBooks b
+               LEFT JOIN Authors a ON b.AuthorID = a.AuthorID
+               LEFT JOIN Publishers p ON b.PublisherID = p.PublisherID";
+
+            using var reader = cmd.ExecuteReader();
+
+            dt.Load(reader);
+
+            return dt;
         }
 
         public static async Task<DataTable> GetInventoryAsync()
@@ -805,12 +834,32 @@ namespace NCB_INV
 
                 try
                 {
+
+                    var authorCache = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+                    var publisherCache = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+
+                    using (var getCmd = connection.CreateCommand())
+                    {
+                        getCmd.Transaction = transaction;
+                        getCmd.CommandText = "SELECT Name, AuthorID FROM Authors";
+                        using (var authorReader = getCmd.ExecuteReader())
+                        {
+                            while (authorReader.Read()) authorCache[authorReader.GetString(0)] = authorReader.GetInt32(1);
+                        }
+
+                        getCmd.CommandText = "SELECT Name, PublisherID FROM Publishers";
+                        using (var pubReader = getCmd.ExecuteReader())
+                        {
+                            while (pubReader.Read()) publisherCache[pubReader.GetString(0)] = pubReader.GetInt32(1);
+                        }
+                    }
+
                     var cmd = connection.CreateCommand();
                     cmd.Transaction = transaction;
 
                     cmd.CommandText = @"INSERT OR REPLACE INTO OfflineBooks 
-                        (Subject, ISBN, Title, Edition, Year, AuthorID, Bind, Price, Qty, PublisherID, SyncRequired, LastModified) 
-                        VALUES ($subject, $isbn, $title, $edition, $year, $authorId, $bind, $price, $qty, $publisherId, 1, $lastMod)";
+                (Subject, ISBN, Title, Edition, Year, AuthorID, Bind, Price, Qty, PublisherID, SyncRequired, LastModified) 
+                VALUES ($subject, $isbn, $title, $edition, $year, $authorId, $bind, $price, $qty, $publisherId, 1, $lastMod)";
 
                     cmd.Parameters.Add("$subject", SqliteType.Text);
                     cmd.Parameters.Add("$isbn", SqliteType.Text);
@@ -826,8 +875,19 @@ namespace NCB_INV
 
                     foreach (var b in books)
                     {
-                        int authorId = GetOrCreateEntity(connection, transaction, "Authors", b.AuthorId);
-                        int publisherId = GetOrCreateEntity(connection, transaction, "Publishers", b.PublisherId);
+                        string aName = b.AuthorId ?? "Unknown";
+                        if (!authorCache.TryGetValue(aName, out int authorId))
+                        {
+                            authorId = GetOrCreateEntity(connection, transaction, "Authors", aName);
+                            authorCache[aName] = authorId;
+                        }
+
+                        string pName = b.PublisherId ?? "Unknown";
+                        if (!publisherCache.TryGetValue(pName, out int publisherId))
+                        {
+                            publisherId = GetOrCreateEntity(connection, transaction, "Publishers", pName);
+                            publisherCache[pName] = publisherId;
+                        }
 
                         cmd.Parameters["$subject"].Value = b.Subject ?? (object)DBNull.Value;
                         cmd.Parameters["$isbn"].Value = b.ISBN ?? (object)DBNull.Value;

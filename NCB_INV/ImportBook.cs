@@ -169,8 +169,17 @@ namespace NCB_INV
             DataTable freshData = await Task.Run(() => DBConnection.GetInventory());
 
 
-            int total = freshData.AsEnumerable().Sum(r => r.Field<int?>("Qty") ?? 0);
-            lblTotalStocks.Text = $"Total Stocks: {total}";
+            var colType = freshData.Columns["Qty"]?.DataType;
+            if (colType == typeof(long))
+            {
+                long totalLong = freshData.AsEnumerable().Sum(r => r.Field<long?>("Qty") ?? 0L);
+                lblTotalStocks.Text = $"Total Stocks: {totalLong}";
+            }
+            else
+            {
+                int total = freshData.AsEnumerable().Sum(r => r.Field<int?>("Qty") ?? 0);
+                lblTotalStocks.Text = $"Total Stocks: {total}";
+            }
 
             dgvBookList.SuspendLayout();
 
@@ -500,7 +509,7 @@ namespace NCB_INV
         {
             if (this.dgvBookList.Columns[e.ColumnIndex].Name == "Qty" && e.Value != null)
             {
-                if (int.TryParse(e.Value.ToString(), out int qty))
+                if (e.Value is int qty)
                 {
                     DataGridViewRow row = dgvBookList.Rows[e.RowIndex];
                     if (qty == 0)
@@ -508,7 +517,7 @@ namespace NCB_INV
                     else if (qty <= 5)
                         row.DefaultCellStyle.BackColor = Color.FromArgb(255, 255, 200); // Light Yellow
                     else
-                        row.DefaultCellStyle.BackColor = Color.White; // Reset if high stock
+                        row.DefaultCellStyle.BackColor = Color.White;
                 }
             }
         }
