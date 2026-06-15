@@ -824,20 +824,24 @@ namespace NCB_INV
                     {
                         getCmd.Transaction = transaction;
                         getCmd.CommandText = "SELECT Name, AuthorID FROM Authors";
-                        using var authorReader  = getCmd.ExecuteReader();
-                        while (authorReader.Read()) authorCache[authorReader.GetString(0)] = authorReader.GetInt32(1);
+                        using (var authorReader = getCmd.ExecuteReader())
+                        {
+                            while (authorReader.Read()) authorCache[authorReader.GetString(0)] = authorReader.GetInt32(1);
+                        }
 
                         getCmd.CommandText = "SELECT Name, PublisherID FROM Publishers";
-                        using var pubReader = getCmd.ExecuteReader();
-                        while (pubReader.Read()) publisherCache[pubReader.GetString(0)] = pubReader.GetInt32(1);
+                        using (var pubReader = getCmd.ExecuteReader())
+                        {
+                            while (pubReader.Read()) publisherCache[pubReader.GetString(0)] = pubReader.GetInt32(1);
+                        }
                     }
 
                     var cmd = connection.CreateCommand();
                     cmd.Transaction = transaction;
 
                     cmd.CommandText = @"INSERT OR REPLACE INTO OfflineBooks 
-                        (Subject, ISBN, Title, Edition, Year, AuthorID, Bind, Price, Qty, PublisherID, SyncRequired, LastModified) 
-                        VALUES ($subject, $isbn, $title, $edition, $year, $authorId, $bind, $price, $qty, $publisherId, 1, $lastMod)";
+                (Subject, ISBN, Title, Edition, Year, AuthorID, Bind, Price, Qty, PublisherID, SyncRequired, LastModified) 
+                VALUES ($subject, $isbn, $title, $edition, $year, $authorId, $bind, $price, $qty, $publisherId, 1, $lastMod)";
 
                     cmd.Parameters.Add("$subject", SqliteType.Text);
                     cmd.Parameters.Add("$isbn", SqliteType.Text);

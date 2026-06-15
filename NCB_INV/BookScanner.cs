@@ -124,11 +124,18 @@ namespace NCB_INV
                                     return raw;
                                 });
 
+                            var localInventoryMap = DBConnection.GetLocalBooks()
+                            .GroupBy(b => b.ISBN.Replace("-", "").Replace(" ", "").Trim())
+                            .ToDictionary(
+                                g => g.Key,
+                                g => g.First()
+                            );
+
                             foreach (var group in groupedData)
                             {
                                 string isbn = group.Key;
                                 int countInExcel = group.Count();
-                                Book? book = DBConnection.GetLocalBookByISBN(isbn);
+                                localInventoryMap.TryGetValue(isbn, out Book? book);
 
                                 if (book != null)
                                 {
@@ -205,8 +212,6 @@ namespace NCB_INV
                 Process.Start(new ProcessStartInfo(sfd.FileName) { UseShellExecute = true });
             }
         }
-
-
 
         private static void GenerateAndOpenReport(string html, bool isStockIn)
         {
