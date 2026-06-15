@@ -98,64 +98,68 @@ namespace NCB_INV
                 {
                     Cursor.Current = Cursors.WaitCursor;
 
-                    using (var stream = File.Open(ofd.FileName, FileMode.Open, FileAccess.Read))
-                    using (var reader = ExcelReaderFactory.CreateReader(stream))
+                    await Task.Run(() =>
                     {
-                        var result = reader.AsDataSet();
-                        if (result.Tables.Count == 0) return;
-
-                        var table = result.Tables[0];
-
-                        var groupedData = table.AsEnumerable()
-                            .Skip(1)
-                            .Where(r => r[0] != DBNull.Value && !string.IsNullOrWhiteSpace(r[0].ToString()))
-                            .GroupBy(r =>
-                            {
-                                string raw = r[0].ToString()!.Trim()
-                                             .Replace("=", "").Replace("\"", "")
-                                             .Replace("-", "").Replace(" ", "");
-
-                                if (double.TryParse(raw, out double d))
-                                {
-                                    return d.ToString("F0");
-                                }
-                                return raw;
-                            });
-
-                        foreach (var group in groupedData)
+                        using (var stream = File.Open(ofd.FileName, FileMode.Open, FileAccess.Read))
+                        using (var reader = ExcelReaderFactory.CreateReader(stream))
                         {
-                            string isbn = group.Key;
-                            int countInExcel = group.Count();
-                            Book? book = DBConnection.GetLocalBookByISBN(isbn);
+                            var result = reader.AsDataSet();
+                            if (result.Tables.Count == 0) return;
 
-                            if (book != null)
+                            var table = result.Tables[0];
+
+                            var groupedData = table.AsEnumerable()
+                                .Skip(1)
+                                .Where(r => r[0] != DBNull.Value && !string.IsNullOrWhiteSpace(r[0].ToString()))
+                                .GroupBy(r =>
+                                {
+                                    string raw = r[0].ToString()!.Trim()
+                                                 .Replace("=", "").Replace("\"", "")
+                                                 .Replace("-", "").Replace(" ", "");
+
+                                    if (double.TryParse(raw, out double d))
+                                    {
+                                        return d.ToString("F0");
+                                    }
+                                    return raw;
+                                });
+
+                            foreach (var group in groupedData)
                             {
-                                int totalChange = isStockIn ? countInExcel : -countInExcel;
-                                book.Qty += totalChange;
-                                book.LastModified = DateTime.Now;
-                                bulkList.Add(book);
-                                updatedCount += countInExcel;
+                                string isbn = group.Key;
+                                int countInExcel = group.Count();
+                                Book? book = DBConnection.GetLocalBookByISBN(isbn);
 
-                                tableRows.AppendLine($@"
+                                if (book != null)
+                                {
+                                    int totalChange = isStockIn ? countInExcel : -countInExcel;
+                                    book.Qty += totalChange;
+                                    book.LastModified = DateTime.Now;
+                                    bulkList.Add(book);
+                                    updatedCount += countInExcel;
+
+                                    tableRows.AppendLine($@"
                             <tr>
                                 <td>{book.ISBN}</td>
                                 <td>{book.Title}</td>
                                 <td style='color: {(isStockIn ? "green" : "blue")}; font-weight: bold;'>{(isStockIn ? "+" : "-")}{countInExcel}</td>
                             </tr>");
 
-                                if (bulkList.Count >= 5000)
-                                {
-                                    DBConnection.SyncBookQuantitiesLocal(bulkList);
-                                    bulkList.Clear();
+                                    if (bulkList.Count >= 5000)
+                                    {
+                                        DBConnection.SyncBookQuantitiesLocal(bulkList);
+                                        bulkList.Clear();
+                                    }
                                 }
-                            }
-                            else
-                            {
-                                tableRows.AppendLine($"<tr style='background-color: #ffe6e6;'><td>{isbn}</td><td style='color: red;'>NOT FOUND</td><td>{countInExcel}</td></tr>");
-                                failCount += countInExcel;
+                                else
+                                {
+                                    tableRows.AppendLine($"<tr style='background-color: #ffe6e6;'><td>{isbn}</td><td style='color: red;'>NOT FOUND</td><td>{countInExcel}</td></tr>");
+                                    failCount += countInExcel;
+                                }
+
                             }
                         }
-                    }
+                    });
 
                     if (bulkList.Count > 0) { DBConnection.SyncBookQuantitiesLocal(bulkList); }
 
