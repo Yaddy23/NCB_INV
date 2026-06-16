@@ -1,14 +1,7 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Data;
+﻿using System.Data;
 using System.Diagnostics;
-using System.Net.Http;
-using System.Runtime.InteropServices.Marshalling;
-using System.Security.Cryptography;
 using System.Text;
 using System.Text.RegularExpressions;
-using System.Threading.Tasks;
-using DocumentFormat.OpenXml.Office2016.Drawing.Charts;
 using Microsoft.Data.Sqlite;
 using MongoDB.Bson;
 using MongoDB.Driver;
@@ -25,7 +18,7 @@ namespace NCB_INV
         private static readonly IMongoDatabase? _database;
         private static readonly string sqliteConn = "Data Source=local_inventory.db;";
         private static readonly HttpClient client1 = new();
-        
+
 
         static DBConnection()
         {
@@ -196,7 +189,7 @@ namespace NCB_INV
             {
                 LogTransactionLocally(isbn, title, change, total, reason, username);
             }
-        } 
+        }
 
         private static void LogTransactionLocally(string isbn, string title, int change, string total, string reason, string username)
         {
@@ -401,7 +394,7 @@ namespace NCB_INV
                 var filter = Builders<Book>.Filter.Gt(b => b.LastModified, lastSync);
                 var cloudBooks = await bookCollection.Find(filter).ToListAsync();
 
-                if(cloudBooks.Count == 0)
+                if (cloudBooks.Count == 0)
                 {
                     System.Diagnostics.Debug.WriteLine("Delta Sync: No new cloud changes since last sync.");
                     return;
@@ -449,7 +442,7 @@ namespace NCB_INV
 
                     if (booksToDelete.Any())
                     {
-                        for(int i = 0; i < booksToDelete.Count; i += 500)
+                        for (int i = 0; i < booksToDelete.Count; i += 500)
                         {
                             var chunk = booksToDelete.Skip(i).Take(500).ToList();
 
@@ -459,7 +452,7 @@ namespace NCB_INV
                             delCmd.Transaction = transaction;
                             delCmd.CommandText = $"DELETE FROM OfflineBooks WHERE ISBN IN ({parameters})";
 
-                            for(int j = 0; j < chunk.Count; j++)
+                            for (int j = 0; j < chunk.Count; j++)
                             {
                                 delCmd.Parameters.AddWithValue($"@p{j}", chunk[j]);
                             }
@@ -937,7 +930,8 @@ namespace NCB_INV
                 try
                 {
                     _bookCollection.DeleteOne(b => b.ISBN == isbn);
-                }catch(Exception ex)
+                }
+                catch (Exception ex)
                 {
                     Console.WriteLine("Cloud Deletion Failed: " + ex.Message);
                 }
@@ -1061,7 +1055,7 @@ namespace NCB_INV
                 using var conn = new SqliteConnection(sqliteConn);
                 conn.Open();
                 using var cmd = conn.CreateCommand();
-                cmd.CommandText = "VACUUM;"; 
+                cmd.CommandText = "VACUUM;";
                 cmd.ExecuteNonQuery();
                 System.Diagnostics.Debug.WriteLine("SQLite Compaction Complete.");
             }

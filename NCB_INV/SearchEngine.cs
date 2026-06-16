@@ -8,6 +8,8 @@ namespace NCB_INV
 {
     public static class SearchEngine
     {
+        private static readonly char[] TitleSplitSeparators = new[] { ' ', '-', '.', ',' };
+
         public static int GetEditDistance(string s, string t)
         {
             if (string.IsNullOrEmpty(s)) return t?.Length ?? 0;
@@ -16,7 +18,7 @@ namespace NCB_INV
             int[] v0 = new int[t.Length + 1];
             int[] v1 = new int[t.Length + 1];
 
-            for(int i = 0; i <= v0.Length; i++) v0[i] = i;
+            for(int i = 0; i < v0.Length; i++) v0[i] = i;
 
             for(int i = 0; i < s.Length; i++)
             {
@@ -46,7 +48,7 @@ namespace NCB_INV
 
             var bestSuggestion = source
                 .Select(b => {
-                    var words = b.Title.ToLower().Split(new[] { ' ', '-', '.', ',' }, StringSplitOptions.RemoveEmptyEntries);
+                    var words = b.Title.ToLower().Split(TitleSplitSeparators, StringSplitOptions.RemoveEmptyEntries);
 
                     double bestWordSimilarity = 0;
                     foreach (var word in words)

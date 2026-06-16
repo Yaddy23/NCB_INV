@@ -1,14 +1,7 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Data;
+﻿using System.Data;
 using System.Diagnostics;
-using System.IO;
 using System.Text;
-using System.Drawing;
-using System.Windows.Forms;
 using ExcelDataReader;
-using System.Data.Common;
-using System.Threading.Tasks;
 
 namespace NCB_INV
 {
@@ -142,6 +135,8 @@ namespace NCB_INV
                                     int totalChange = isStockIn ? countInExcel : -countInExcel;
                                     book.Qty += totalChange;
                                     book.LastModified = DateTime.Now;
+                                    book.AuthorId = book.AuthorName;
+                                    book.PublisherId = book.PublisherName;
                                     bulkList.Add(book);
                                     updatedCount += countInExcel;
 

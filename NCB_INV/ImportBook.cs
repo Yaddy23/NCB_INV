@@ -1,12 +1,6 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Data;
+﻿using System.Data;
 using System.Diagnostics;
-using System.IO;
 using System.Net.NetworkInformation;
-using System.Text;
-using System.Threading.Tasks;
-using System.Windows.Forms;
 using ExcelDataReader;
 using static NCB_INV.DBConnection;
 
@@ -72,8 +66,8 @@ namespace NCB_INV
         private void EnableDoubleBuffering(DataGridView dgv)
         {
             typeof(DataGridView).InvokeMember("DoubleBuffered",
-                System.Reflection.BindingFlags.NonPublic | 
-                System.Reflection.BindingFlags.Instance | 
+                System.Reflection.BindingFlags.NonPublic |
+                System.Reflection.BindingFlags.Instance |
                 System.Reflection.BindingFlags.SetProperty,
                 null, dgv, new object[] { true });
         }
@@ -329,7 +323,7 @@ namespace NCB_INV
 
             if (ofd.ShowDialog() == DialogResult.OK)
             {
-                    btnImport.Enabled = false;
+                btnImport.Enabled = false;
                 try
                 {
                     Cursor.Current = Cursors.WaitCursor;
