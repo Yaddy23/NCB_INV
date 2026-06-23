@@ -181,6 +181,13 @@ namespace NCB_INV
             dgvBookList.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.None;
             dgvBookList.RowHeadersWidthSizeMode = DataGridViewRowHeadersWidthSizeMode.DisableResizing;
             //Re - bind the data source
+
+            if(dgvBookList.DataSource is DataTable oldTable)
+            {
+                dgvBookList.DataSource = null;
+                oldTable.Dispose();
+            }
+
             dgvBookList.DataSource = freshData;
 
             if (dgvBookList.Columns.Contains("LastModified"))

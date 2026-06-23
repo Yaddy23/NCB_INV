@@ -19,7 +19,11 @@ namespace NCB_INV
         public ObjectId Id { get; set; }
         public int SqliteId { get; set; }
         public string? Name { get; set; }
+
     }
+
+
+
 
     [BsonIgnoreExtraElements]
     public class Book(string subject, string isbn, string title, string edition, string year,
@@ -42,5 +46,20 @@ namespace NCB_INV
 
         [BsonIgnore]
         public string PublisherName { get; set; } = "Unknown";
+
+        private string[]? _searchableWords;
+
+        [BsonIgnore]
+        public string[] SearchableWords
+        {
+            get
+            {
+                if(_searchableWords == null)
+                {
+                    _searchableWords = Title.ToLower().Split(new[] { ' ', '-', '.', ',' }, StringSplitOptions.RemoveEmptyEntries);
+                }
+                return _searchableWords;
+            }
+        }
     }
 }

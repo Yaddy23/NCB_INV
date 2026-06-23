@@ -47,8 +47,9 @@ namespace NCB_INV
             if (matches.Any()) return (matches, null!);
 
             var bestSuggestion = source
+                .AsParallel()
                 .Select(b => {
-                    var words = b.Title.ToLower().Split(TitleSplitSeparators, StringSplitOptions.RemoveEmptyEntries);
+                    var words = b.SearchableWords;
 
                     double bestWordSimilarity = 0;
                     foreach (var word in words)

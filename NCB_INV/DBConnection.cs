@@ -511,6 +511,8 @@ namespace NCB_INV
 
             var syncedIsbns = new List<string>();
 
+            var bulkOps = new List<WriteModel<Book>>();
+
             while (await reader.ReadAsync())
             {
                 try
@@ -534,16 +536,12 @@ namespace NCB_INV
                         .Set(b => b.LastModified, Convert.ToDateTime(reader["LastModified"]))
                         .Set(b => b.Qty, Convert.ToInt32(reader["Qty"]));
 
-                    var result = await bookCollection.UpdateOneAsync(
-                        b => b.ISBN == isbn,
-                        updateDef,
-                        new UpdateOptions { IsUpsert = true }
-                    );
+                    bulkOps.Add(new UpdateOneModel<Book>(
+                    Builders<Book>.Filter.Eq(b => b.ISBN, isbn),
+                    updateDef
+                    ) { IsUpsert = true });
 
-                    if (result.IsAcknowledged)
-                    {
-                        syncedIsbns.Add(isbn);
-                    }
+                    syncedIsbns.Add(isbn);
                 }
                 catch (Exception ex)
                 {
