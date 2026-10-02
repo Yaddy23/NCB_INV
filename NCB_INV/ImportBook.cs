@@ -14,7 +14,7 @@ namespace NCB_INV
         public ImportBook()
         {
             InitializeComponent();
-            SetupAutoSync();
+            //SetupAutoSync();
             this.FormBorderStyle = FormBorderStyle.FixedSingle;
             this.MaximizeBox = false;
             this.StartPosition = FormStartPosition.CenterScreen;
@@ -63,6 +63,45 @@ namespace NCB_INV
 
         }
 
+        public static void LogLocalError(string context, Exception ex)
+        {
+            try
+            {
+                string logFolder = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Logs");
+                Directory.CreateDirectory(logFolder);
+                string logFile = Path.Combine(logFolder, "Sync_ErrorLog.txt");
+
+                string logMessage = $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] ERROR in {context}:{Environment.NewLine}" +
+                                    $"Message: {ex.Message}{Environment.NewLine}" +
+                                    $"StackTrace: {ex.StackTrace}{Environment.NewLine}" +
+                                    $"--------------------------------------------------{Environment.NewLine}";
+
+                File.AppendAllText(logFile, logMessage);
+            }
+            catch
+            {
+                // Fail silently to prevent recursive crash loops if the disk/folder is locked
+            }
+        }
+
+        public static async Task ExecuteForceSyncAsync()
+        {
+            try
+            {
+                if (!IsCloudAvailable())
+                {
+                    throw new InvalidOperationException("Cloud database is unreachable. Cannot force sync.");
+                }
+
+                await ExecuteDeltaSync();
+            }
+            catch (Exception ex)
+            {
+                LogLocalError("Manual Force Sync", ex);
+                throw;
+            }
+        }
+
         private void EnableDoubleBuffering(DataGridView dgv)
         {
             typeof(DataGridView).InvokeMember("DoubleBuffered",
@@ -102,59 +141,59 @@ namespace NCB_INV
             }
         }
 
-        private void SetupAutoSync()
-        {
+        //private void SetupAutoSync()
+        //{
 
-            syncTimer = new System.Windows.Forms.Timer
-            {
-                Interval = 300000
-            };
-            syncTimer.Tick += async (s, e) => await RunBackgroundSync();
-            syncTimer.Start();
-        }
+        //    syncTimer = new System.Windows.Forms.Timer
+        //    {
+        //        Interval = 600000
+        //    };
+        //    syncTimer.Tick += async (s, e) => await RunBackgroundSync();
+        //    syncTimer.Start();
+        //}
 
         private bool isSyncing = false;
-        private async Task RunBackgroundSync()
-        {
-            bool isCloudUp = await Task.Run(() => DBConnection.IsCloudAvailable());
+        //private async Task RunBackgroundSync()
+        //{
+        //    bool isCloudUp = await Task.Run(() => DBConnection.IsCloudAvailable());
 
-            if (isSyncing || !isCloudUp)
-            {
-                if (!isCloudUp)
-                {
-                    lblSyncStatus.Text = isCloudUp ? "Status: Sync in Progress..." : "Status: Cloud Unreachable";
-                    lblSyncStatus.ForeColor = isCloudUp ? Color.Orange : Color.Red;
-                }
-                return;
-            }
+        //    if (isSyncing || !isCloudUp)
+        //    {
+        //        if (!isCloudUp)
+        //        {
+        //            lblSyncStatus.Text = isCloudUp ? "Status: Sync in Progress..." : "Status: Cloud Unreachable";
+        //            lblSyncStatus.ForeColor = isCloudUp ? Color.Orange : Color.Red;
+        //        }
+        //        return;
+        //    }
 
-            isSyncing = true;
-            lblSyncStatus.Text = "Status: Syncing & Resolving...";
-            lblSyncStatus.ForeColor = Color.Blue;
+        //    isSyncing = true;
+        //    lblSyncStatus.Text = "Status: Syncing & Resolving...";
+        //    lblSyncStatus.ForeColor = Color.Blue;
 
-            try
-            {
-                await Task.Run(async () => await DBConnection.ExecuteDeltaSync());
+        //    try
+        //    {
+        //        await Task.Run(async () => await DBConnection.ExecuteDeltaSync());
 
-                await RefreshBookList();
-                lblSyncStatus.Text = $"Last Sync: {DateTime.Now:hh:mm:ss tt}";
-                lblSyncStatus.ForeColor = Color.Green;
+        //        await RefreshBookList();
+        //        lblSyncStatus.Text = $"Last Sync: {DateTime.Now:hh:mm:ss tt}";
+        //        lblSyncStatus.ForeColor = Color.Green;
 
-            }
-            catch (Exception ex)
-            {
-                System.Diagnostics.Debug.WriteLine($"Sync Failure: {ex.Message}");
-                this.Invoke((MethodInvoker)delegate
-                {
-                    lblSyncStatus.Text = "Status: Sync Failed";
-                    lblSyncStatus.ForeColor = Color.Red;
-                });
-            }
-            finally
-            {
-                isSyncing = false;
-            }
-        }
+        //    }
+        //    catch (Exception ex)
+        //    {
+        //        System.Diagnostics.Debug.WriteLine($"Sync Failure: {ex.Message}");
+        //        this.Invoke((MethodInvoker)delegate
+        //        {
+        //            lblSyncStatus.Text = "Status: Sync Failed";
+        //            lblSyncStatus.ForeColor = Color.Red;
+        //        });
+        //    }
+        //    finally
+        //    {
+        //        isSyncing = false;
+        //    }
+        //}
 
         private async Task RefreshBookList()
         {
@@ -182,7 +221,7 @@ namespace NCB_INV
             dgvBookList.RowHeadersWidthSizeMode = DataGridViewRowHeadersWidthSizeMode.DisableResizing;
             //Re - bind the data source
 
-            if(dgvBookList.DataSource is DataTable oldTable)
+            if (dgvBookList.DataSource is DataTable oldTable)
             {
                 dgvBookList.DataSource = null;
                 oldTable.Dispose();
@@ -218,6 +257,8 @@ namespace NCB_INV
 
         private async void ImportBook_Load(object sender, EventArgs e)
         {
+
+
             Color primaryNavy = ColorTranslator.FromHtml("#2C3E50");
             Color accentBlue = ColorTranslator.FromHtml("#3498DB");
             Color bgLight = ColorTranslator.FromHtml("#F4F7F6");
@@ -233,7 +274,7 @@ namespace NCB_INV
             BackupLocalDatabase();
             ApplyPermissions();
             await RefreshBookList();
-            await RunBackgroundSync();
+            //await RunBackgroundSync();
 
 
         }

@@ -8,6 +8,7 @@ namespace NCB_INV
     public partial class BookScanner : Form
     {
         private Book? currentbook;
+        private MobileScannerService? _mobileScannerService;
 
         public BookScanner()
         {
@@ -18,34 +19,76 @@ namespace NCB_INV
             this.ActiveControl = txtBarcodeScanner;
         }
 
+        public struct ScanResult
+        {
+            public bool Success { get; set; }
+            public string Title { get; set; }
+            public int OldQty { get; set; }
+            public int NewQty { get; set; }
+            public string Message { get; set; }
+        }
+
+        public ScanResult ProcessScan(string isbn)
+        {
+            if (string.IsNullOrWhiteSpace(isbn))
+                return new ScanResult { Success = false, Message = "Empty ISBN" };
+
+            var currentbook = DBConnection.GetLocalBookByISBN(isbn);
+            string currentuser = DBConnection.CurrentSession.User?.DisplayName ?? "Unknown User";
+
+            if (currentbook != null)
+            {
+                int oldQty = currentbook.Qty;
+                currentbook.Qty += 1;
+
+                // Save updated book to SQLite & mark for cloud sync
+                DBConnection.SaveBook(currentbook, currentbook.AuthorName, currentbook.PublisherName);
+
+                // Update UI
+                lblTitle.Text = $"Title: {currentbook.Title}";
+                lblOldQty.Text = $"Previous Qty: {oldQty}";
+                lblNewQty.Text = $"New Total Qty: {currentbook.Qty}";
+                lblNewQty.ForeColor = Color.Green;
+
+                // Log transaction
+                DBConnection.LogTransaction(isbn, lblTitle.Text, oldQty, currentbook.Qty.ToString(), "Book Scanned", currentuser);
+
+                return new ScanResult
+                {
+                    Success = true,
+                    Title = currentbook.Title,
+                    OldQty = oldQty,
+                    NewQty = currentbook.Qty,
+                    Message = "Book Scanned"
+                };
+            }
+            else
+            {
+                // Update UI for missing item
+                lblTitle.Text = "NOT FOUND";
+                lblOldQty.Text = "";
+                lblNewQty.Text = "No record for this ISBN";
+                lblNewQty.ForeColor = Color.Red;
+
+                return new ScanResult
+                {
+                    Success = false,
+                    Title = "NOT FOUND",
+                    OldQty = 0,
+                    NewQty = 0,
+                    Message = "No record for this ISBN"
+                };
+            }
+        }
+
         private void TxtBarcodeScanner_KeyDown(object sender, KeyEventArgs e)
         {
             if (e.KeyCode == Keys.Enter)
             {
                 string isbn = txtBarcodeScanner.Text.Trim();
-                if (string.IsNullOrEmpty(isbn)) return;
-
-                currentbook = DBConnection.GetLocalBookByISBN(isbn);
-                string currentuser = DBConnection.CurrentSession.User?.DisplayName ?? "Unknown User";
-
-                if (currentbook != null)
+                if (!string.IsNullOrEmpty(isbn))
                 {
-                    int oldQty = currentbook.Qty;
-                    currentbook.Qty += 1;
-                    DBConnection.SaveBook(currentbook, currentbook.AuthorName, currentbook.PublisherName);
-
-                    lblTitle.Text = $"Title: {currentbook.Title}";
-                    lblOldQty.Text = $"Previous Qty: {oldQty}";
-                    lblNewQty.Text = $"New Total Qty: {currentbook.Qty}";
-                    lblNewQty.ForeColor = Color.Green;
-                    DBConnection.LogTransaction(txtBarcodeScanner.Text, lblTitle.Text, oldQty, currentbook.Qty.ToString(), "Book Scanned", currentuser);
-                }
-                else
-                {
-                    lblTitle.Text = "NOT FOUND";
-                    lblOldQty.Text = "";
-                    lblNewQty.Text = "No record for this ISBN";
-                    lblNewQty.ForeColor = Color.Red;
+                    ProcessScan(isbn);
                 }
 
                 txtBarcodeScanner.Clear();
@@ -262,5 +305,19 @@ namespace NCB_INV
 
         private void BtnClose_Click(object sender, EventArgs e) => this.Close();
 
+        private void BookScanner_Load(object sender, EventArgs e)
+        {
+            _mobileScannerService = new MobileScannerService(isbn =>
+            {
+                return (ScanResult)this.Invoke(new Func<ScanResult>(() => ProcessScan(isbn)));
+            });
+
+            _mobileScannerService.Start(8080);
+        }
+
+        private void BookScanner_FormClosing(object sender, FormClosingEventArgs e)
+        {
+            _mobileScannerService?.Stop();
+        }
     }
 }

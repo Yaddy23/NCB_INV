@@ -103,7 +103,7 @@
             // 
             // btnReload
             // 
-            btnReload.Font = new Font("Microsoft Sans Serif", 18F, FontStyle.Bold, GraphicsUnit.Point, 0);
+            btnReload.Font = new Font("Segoe UI", 18F, FontStyle.Bold, GraphicsUnit.Point, 0);
             btnReload.Location = new Point(1497, 44);
             btnReload.Name = "btnReload";
             btnReload.Size = new Size(358, 56);

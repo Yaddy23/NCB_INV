@@ -130,6 +130,7 @@
             MinimizeBox = false;
             Name = "BookScanner";
             Text = "BookScanner";
+            Load += BookScanner_Load;
             ResumeLayout(false);
             PerformLayout();
         }
